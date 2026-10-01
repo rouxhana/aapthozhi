@@ -2,11 +2,13 @@
 ### *Aapki Bhasha. Aapka Haq. AapThozhi.*
 > **"AapThozhi is a voice-first, icon-first, multilingual support companion that helps women access essential services through the language they already speak."**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![React](https://img.shields.io/badge/React-19.2-61dafb.svg?logo=react)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6.svg?logo=typescript)](https://www.typescriptlang.org)
-[![Vite](https://img.shields.io/badge/Vite-6.x-646cff.svg?logo=vite)](https://vite.dev)
-[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-v4-38bdf8.svg?logo=tailwindcss)](https://tailwindcss.com)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Active_Deployment-success.svg?style=for-the-badge&logo=githubpages&logoColor=white)](https://rouxhana.github.io/aapthozhi/)
+[![Repository](https://img.shields.io/badge/GitHub-Repository-181717.svg?style=for-the-badge&logo=github)](https://github.com/rouxhana/aapthozhi)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+
+**🌐 Live Web Application:** [https://rouxhana.github.io/aapthozhi/](https://rouxhana.github.io/aapthozhi/)  
+**📁 GitHub Repository:** [https://github.com/rouxhana/aapthozhi](https://github.com/rouxhana/aapthozhi)
+
 
 ---
 
