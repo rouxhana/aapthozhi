@@ -17,6 +17,8 @@ import { SCHEMES_DATA, getLocalizedScheme } from '../data/schemes';
 import { SpeakerButton } from '../components/SpeakerButton';
 import { ExplainSlowlyModal } from '../components/ExplainSlowlyModal';
 import { speechService } from '../services/speechService';
+import { aapThozhiAIService } from '../services/aapThozhiAIService';
+import { voiceDetectionService } from '../services/voiceDetectionService';
 
 const DEFAULT_QUERIES: Record<LanguageCode, string> = {
   ta: 'என் மகளின் கல்வி உதவிக்கு திட்டம் வேண்டும்.',
@@ -33,23 +35,6 @@ const DEFAULT_QUERIES: Record<LanguageCode, string> = {
   ur: 'مجھے اپنی بیٹی کی تعلیم کے لیے وظیفے کی مدد چاہیے۔',
   hinglish: 'Mujhe apni beti ki padhai ke liye scholarship help chahiye.',
   en: 'I need help for my daughter’s education.',
-};
-
-const ASSISTANT_REPLIES: Record<LanguageCode, string> = {
-  ta: 'வணக்கம்! உங்கள் மகளின் கல்வி உதவித்தொகை பற்றிய தகவல் இதோ. பாலிகா சிக்ஷா திட்டத்தின் கீழ் ஆண்டுதோறும் பள்ளி உதவித்தொகை, இலவச சீருடை மற்றும் புத்தகங்கள் கிடைக்கும். பள்ளி சான்றிதழ், ஆதார் அட்டை, மற்றும் வங்கி பாஸ்புக் ஆகிய 3 ஆவணங்கள் மட்டும் தேவை.',
-  hi: 'नमस्ते! आपकी बेटी की पढ़ाई के लिए सहायता की जानकारी यहाँ है। बालिका शिक्षा योजना के तहत सालाना छात्रवृत्ति, मुफ्त किताबें और यूनिफॉर्म मिलते हैं। बस 3 मुख्य दस्तावेज़ चाहिए: स्कूल सर्टिफिकेट, आधार कार्ड और बैंक पासबुक।',
-  te: 'నమస్కారం! మీ అమ్మాయి చదువు కోసం ప్రభుత్వ సహాయం వివరాలు ఇక్కడ ఉన్నాయి. బాలికా శిక్షా పథకం ద్వారా వార్షిక ఉపకార వేతనం, పుస్తకాలు, యూనిఫాం లభిస్తాయి. స్కూల్ సర్టిఫికెట్, ఆధార్, బ్యాంక్ పాస్‌బుక్ ఉంటే చాలు.',
-  bn: 'নমস্কার! আপনার মেয়ের পড়াশোনার সহায়তার জন্য সমস্ত তথ্য এখানে রয়েছে। বালিকা শিক্ষা কল্যাণ অনুদানের অধীনে বার্ষিক বৃত্তি, বই এবং ইউনিফর্ম পাওয়া যায়। স্কুল সার্টিফিকেট, আধার কার্ড ও ব্যাংক পাসবই জমা দিলেই হবে।',
-  mr: 'नमस्ते! आपल्या मुलीच्या शिक्षणासाठी शासकीय मदतीची माहिती येथे आहे. बालिका शिक्षा अनुदानांतर्गत वार्षिक शिष्यवृत्ती, पुस्तके व गणवेश मिळतात. शाळा प्रमाणपत्र, आधार कार्ड आणि बँक पासबुक आवश्यक आहेत.',
-  kn: 'ನಮಸ್ಕಾರ! ನಿಮ್ಮ ಮಗಳ ವಿದ್ಯಾಭ್ಯಾಸದ ನೆರವಿಗಾಗಿ ಮಾಹಿತಿ ಇಲ್ಲಿದೆ. ಬಾಲಿಕಾ ಶಿಕ್ಷಣ ಯೋಜನೆಯಡಿ ವಾರ್ಷಿಕ ವಿದ್ಯಾರ್ಥಿವೇತನ, ಪುಸ್ತಕಗಳು ಮತ್ತು ಸಮವಸ್ತ್ರ ಸಿಗುತ್ತದೆ. ಶಾಲೆ ಪ್ರಮಾಣಪತ್ರ, ಆಧಾರ್ ಕಾರ್ಡ್ ಮತ್ತು ಬ್ಯಾಂಕ್ ಪಾಸ್‌ಬುಕ್ ಅಗತ್ಯವಿದೆ.',
-  gu: 'નમસ્તે! તમારી દીકરીના શિક્ષણ માટે સહાયની વિગતો અહીં છે. બાલિકા શિક્ષણ યોજના હેઠળ વાર્ષિક શિષ્યવૃત્તિ, પુસ્તકો અને ગણવેશ મળે છે. સ્કૂલ સર્ટિફિકેટ, આધાર કાર્ડ અને બેંક પાસબુક જોઈએ.',
-  ml: 'നമസ്കാരം! നിങ്ങളുടെ മകളുടെ വിദ്യാഭ്യാസ സഹായ വിവരങ്ങൾ ഇതാ. ബാലികാ ശിക്ഷാ പദ്ധതി പ്രകാരം വാർഷിക സ്കോളർഷിപ്പും പുസ്തകങ്ങളും യൂണിഫോമും ലഭിക്കും. സ്കൂൾ സർട്ടിഫിക്കറ്റ്, ആധാർ കാർഡ്, ബാങ്ക് പാസ്ബുക്ക് എന്നിവ മതി.',
-  pa: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਤੁਹਾਡੀ ਧੀ ਦੀ ਪੜ੍ਹਾਈ ਲਈ ਸਹਾਇਤਾ ਦੀ ਜਾਣਕਾਰੀ ਇੱਥੇ ਹੈ। ਬਾਲਿਕਾ ਸਿੱਖਿਆ ਯੋਜਨਾ ਤਹਿਤ ਸਾਲਾਨਾ ਵਜ਼ੀਫ਼ਾ, ਕਿਤਾਬਾਂ ਅਤੇ ਵਰਦੀਆਂ ਮਿਲਦੀਆਂ ਹਨ। ਸਕੂਲ ਸਰਟੀਫਿਕੇਟ, ਆਧਾਰ ਕਾਰਡ ਅਤੇ ਬੈਂਕ ਪਾਸਬੁੱਕ ਚਾਹੀਦੀ ਹੈ।',
-  od: 'ନମସ୍କାର! ଆପଣଙ୍କ ଝିଅର ପାଠପଢ଼ା ସହାୟତା ପାଇଁ ସୂଚନା ଏଠାରେ ଅଛି। ବାଳିକା ଶିକ୍ଷା ଯୋଜନାରେ ବାର୍ଷିକ ବୃତ୍ତି, ବହି ଓ ପୋଷାକ ମିଳିଥାଏ। ସ୍କୁଲ ସାର୍ଟିଫିକେଟ୍, ଆଧାର ଓ ବ୍ୟାଙ୍କ ପାସବୁକ୍ ଆବଶ୍ୟକ।',
-  as: 'নমস্কাৰ! আপোনাৰ ছোৱালীৰ শিক্ষা সাহায্যৰ বিষয়ে সকলো তথ্য ইয়াত আছে। বালিকা শিক্ষা আঁচনিৰ অধীনত বাৰ্ষিক বৃত্তি, কিতাপ আৰু সাজ-পোছাক পোৱা যায়। স্কুল প্ৰমাণপত্ৰ, আধাৰ আৰু বেংক পাছবুক প্ৰয়োজন।',
-  ur: 'السلام علیکم! آپ کی بیٹی کی تعلیم کے لیے سرکاری امداد کی معلومات یہاں موجود ہیں۔ بالیکا شکشا اسکیم کے تحت سالانہ وظیفہ، کتابیں اور یونیفارم دی جاتی ہیں۔ اسکول سرٹیفکیٹ، آدھار کارڈ اور بینک پاس بک درکار ہیں۔',
-  hinglish: 'Namaste! Aapki beti ki padhai ke liye help ki details yahan hain. Balika Shiksha Yojana ke under annual grant, free books aur uniform milti hai. Bas 3 documents chahiye: school certificate, aadhaar card aur bank passbook.',
-  en: 'Namaste! I understand you want education support for your daughter. Under the Balika Shiksha Welfare Grant, eligible families receive annual school grants, free books, and uniforms. You only need 3 main papers to apply: her school study certificate, her Aadhaar card, and your bank passbook.',
 };
 
 interface ChatMessage {
@@ -84,9 +69,9 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
   const currentScheme = getLocalizedScheme(SCHEMES_DATA[0], currentLanguage);
 
   useEffect(() => {
-    // Select localized initial user query and assistant response
+    // Select localized initial user query and generate AapThozhi AI assistant response
     const resolvedUserQuery = initialQuery || DEFAULT_QUERIES[currentLanguage] || DEFAULT_QUERIES.en;
-    const resolvedAssistantReply = ASSISTANT_REPLIES[currentLanguage] || ASSISTANT_REPLIES.en;
+    const aiResponse = aapThozhiAIService.generateResponse(resolvedUserQuery, currentLanguage);
 
     const userMsg: ChatMessage = {
       id: 'msg-1',
@@ -98,17 +83,17 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
     const assistantMsg: ChatMessage = {
       id: 'msg-2',
       sender: 'assistant',
-      text: resolvedAssistantReply,
-      audioText: resolvedAssistantReply,
-      schemeIdTarget: 'scheme-education-girl',
-      showSchemeAction: true,
+      text: aiResponse.responseText,
+      audioText: aiResponse.audioText,
+      schemeIdTarget: aiResponse.matchedScheme ? String(aiResponse.matchedScheme.id) : 'scheme-education-girl',
+      showSchemeAction: !!aiResponse.matchedScheme,
     };
 
     setMessages([userMsg, assistantMsg]);
 
     // Speak initial assistant reply in native language
     const timer = setTimeout(() => {
-      speechService.speak(assistantMsg.audioText, currentLanguage, 1.0);
+      speechService.speak(assistantMsg.audioText, aiResponse.detectedLanguage, 1.0);
     }, 500);
 
     return () => {
@@ -140,44 +125,141 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
       audioText: customInputText,
     };
 
+    const aiRes = aapThozhiAIService.generateResponse(customInputText, currentLanguage);
+
     const replyMsg: ChatMessage = {
       id: `msg-reply-${Date.now()}`,
       sender: 'assistant',
-      text: `Got it! Updating your request to: "${customInputText}". AapThozhi has verified the latest guidelines for this assistance. Tap the card below to see documents and nearby help centres.`,
-      audioText: `Got it! Updating your request to: ${customInputText}. Tap the card below to see documents and nearby help centres.`,
-      schemeIdTarget: 'scheme-education-girl',
-      showSchemeAction: true,
+      text: aiRes.responseText,
+      audioText: aiRes.audioText,
+      schemeIdTarget: aiRes.matchedScheme ? String(aiRes.matchedScheme.id) : undefined,
+      showSchemeAction: !!aiRes.matchedScheme,
     };
 
     setMessages((prev) => [...prev, updatedUserMsg, replyMsg]);
     setIsEditingInput(false);
-    speechService.speak(replyMsg.audioText, currentLanguage);
+    speechService.speak(replyMsg.audioText, aiRes.detectedLanguage);
   };
 
   const handleNextVoiceAnswer = () => {
     setIsListeningNext(true);
     speechService.speak(t.listening, currentLanguage);
 
-    setTimeout(() => {
-      setIsListeningNext(false);
-      const userReply: ChatMessage = {
-        id: `msg-voice-${Date.now()}`,
-        sender: 'user',
-        text: 'Where is the nearest centre to apply?',
-        audioText: 'Where is the nearest centre to apply?',
-      };
-      const assistantReply: ChatMessage = {
-        id: `msg-assistant-loc-${Date.now()}`,
-        sender: 'assistant',
-        text: 'The nearest help centre is Seva Sahayata Kendra, just 1.2 kilometres away. You can also visit your ward Anganwadi centre (0.8 km). I have prepared the exact paper checklist and a "What to Say" card for you!',
-        audioText: 'The nearest help centre is Seva Sahayata Kendra, just 1.2 kilometres away. You can also visit your ward Anganwadi centre. I have prepared the exact paper checklist and what to say card for you!',
-        schemeIdTarget: 'scheme-education-girl',
-        showSchemeAction: true,
-      };
+    let caught = false;
+    voiceDetectionService.startListening(
+      (_interim: string) => {
+        // interim
+      },
+      (res: any) => {
+        caught = true;
+        setIsListeningNext(false);
+        const transcript = res.transcript;
+        const aiRes = aapThozhiAIService.generateResponse(transcript, currentLanguage);
 
-      setMessages((prev) => [...prev, userReply, assistantReply]);
-      speechService.speak(assistantReply.audioText, currentLanguage);
-    }, 2500);
+        const userReply: ChatMessage = {
+          id: `msg-voice-${Date.now()}`,
+          sender: 'user',
+          text: transcript,
+          audioText: transcript,
+        };
+        const assistantReply: ChatMessage = {
+          id: `msg-assistant-${Date.now()}`,
+          sender: 'assistant',
+          text: aiRes.responseText,
+          audioText: aiRes.audioText,
+          schemeIdTarget: aiRes.matchedScheme ? String(aiRes.matchedScheme.id) : undefined,
+          showSchemeAction: !!aiRes.matchedScheme,
+        };
+
+        setMessages((prev) => [...prev, userReply, assistantReply]);
+        speechService.speak(assistantReply.audioText, aiRes.detectedLanguage);
+      },
+      () => {
+        if (!caught) {
+          setTimeout(() => {
+            setIsListeningNext(false);
+            const fallbackMap: Record<LanguageCode, { q: string; a: string }> = {
+              ta: {
+                q: 'விண்ணப்பிக்க அருகிலுள்ள மையம் எங்கே உள்ளது?',
+                a: 'அக்கா, உங்கள் கிராம நிர்வாக அலுவலகம் அல்லது அருகில் உள்ள அங்கன்வாடி மையத்திற்கு நேரில் செல்லுங்கள். அங்கு ஆஷா தமக்கை உங்களுக்கு படிவத்தை இலவசமாக பூர்த்தி செய்து தருவார்.',
+              },
+              te: {
+                q: 'దరఖాస్తు చేసుకోవడానికి సమీప కేంద్రం ఎక్కడ ఉంది?',
+                a: 'అక్కా, మీ పంచాయతీ కార్యాలయం లేదా సమీప అంగన్‌వాడీ కేంద్రానికి వెళ్ళండి. అక్కడ ఆశా కార్యకర్త మీకు ఉచితంగా దరఖాస్తు చేయడంలో సహాయం చేస్తారు.',
+              },
+              kn: {
+                q: 'ಅರ್ಜಿ ಸಲ್ಲಿಸಲು ಹತ್ತಿರದ ಕೇಂದ್ರ ಎಲ್ಲಿದೆ?',
+                a: 'ಅಕ್ಕಾ, ನಿಮ್ಮ ಗ್ರಾಮ ಪಂಚಾಯತಿ ಅಥವಾ ಸಮೀಪದ ಅಂಗನವಾಡಿ ಕೇಂದ್ರಕ್ಕೆ ಭೇಟಿ ನೀಡಿ. ಅಲ್ಲಿ ಆಶಾ ಕಾರ್ಯಕರ್ತೆ ನಿಮಗೆ ಸಂಪೂರ್ಣ ಉಚಿತ ಮಾರ್ಗದರ್ಶನ ನೀಡುತ್ತಾರೆ.',
+              },
+              mr: {
+                q: 'अर्ज भरण्यासाठी जवळचे केंद्र कुठे आहे?',
+                a: 'ताई, तुमच्या गावातील ग्रामपंचायत कार्यालय किंवा जवळच्या अंगणवाडी केंद्रात जा. तिथे आशा ताई तुम्हाला मोफत अर्ज भरून देतील.',
+              },
+              hi: {
+                q: 'आवेदन करने के लिए नज़दीकी केंद्र कहाँ है?',
+                a: 'दीदी, आप अपने गाँव के पंचायत भवन या नज़दीकी आँगनवाड़ी केंद्र पर जा सकती हैं। वहाँ आशा दीदी आपको फॉर्म भरने में पूरी मदद करेंगी।',
+              },
+              bn: {
+                q: 'আবেদন করার জন্য কাছের কেন্দ্র কোথায়?',
+                a: 'দিদি, আপনার এলাকার পঞ্চায়েত অফিস বা অঙ্গনওয়াড়ি কেন্দ্রে যান। সেখানে আশা দিদি আপনাকে বিনামূল্যে সাহায্য করবেন।',
+              },
+              gu: {
+                q: 'અરજી કરવા માટે નજીકનું કેન્દ્ર ક્યાં છે?',
+                a: 'બહેન, તમારા ગામની ગ્રામ પંચાયત અથવા આંગણવાડી કેન્દ્રની મુલાકાત લો. ત્યાં આશા બહેન તમને મદદ કરશે.',
+              },
+              ml: {
+                q: 'അപേക്ഷിക്കാൻ അടുത്തുള്ള കേന്ദ്രം എവിടെയാണ്?',
+                a: 'ചേച്ചീ, നിങ്ങളുടെ പഞ്ചായത്ത് ഓഫീസിലോ അങ്കണവാടിയിലോ നേരിട്ട് പോകാം. അവിടെയുള്ള ആശാ പ്രവർത്തക സഹായിക്കും.',
+              },
+              pa: {
+                q: 'ਅਰਜ਼ੀ ਦੇਣ ਲਈ ਨੇੜਲਾ ਕੇਂਦਰ ਕਿੱਥੇ ਹੈ?',
+                a: 'ਭੈਣ ਜੀ, ਆਪਣੇ ਪਿੰਡ ਦੇ ਪੰਚਾਇਤ ਘਰ ਜਾਂ ਆਂਗਣਵਾੜੀ ਸੈਂਟਰ ਜਾਓ। ਉੱਥੇ ਆਸ਼ਾ ਵਰਕਰ ਤੁਹਾਡੀ ਪੂਰੀ ਮਦਦ ਕਰੇਗੀ।',
+              },
+              od: {
+                q: 'ଆବେଦନ ପାଇଁ ନିକଟସ୍ଥ କେନ୍ଦ୍ର କେଉଁଠି?',
+                a: 'ଭଉଣୀ, ପାଖ ପଞ୍ଚାୟତ ଅଫିସ ବା ଅଙ୍ଗନୱାଡି କେନ୍ଦ୍ରକୁ ଯାଆନ୍ତୁ। ସେଠାରେ ଆଶା ଦିଦି ସାହାଯ୍ୟ କରିବେ।',
+              },
+              as: {
+                q: 'আবেদন কৰিবলৈ ওচৰৰ কেন্দ্ৰ ক’ত আছে?',
+                a: 'বাইদেউ, ওচৰৰ পঞ্চায়ত কাৰ্যালয় বা অংগনৱাড়ী কেন্দ্ৰলৈ যাওক। তাত আশা বাইদেউৱে সহায় কৰিব।',
+              },
+              ur: {
+                q: 'درخواست دینے کے لیے قریبی مرکز کہاں ہے؟',
+                a: 'بہن، آپ اپنے قریبی پنچایت دفتر یا آنگن واڑی تشریف لے جائیں، وہاں آشا آپ کی پوری مدد کریں گی۔',
+              },
+              hinglish: {
+                q: 'Apply karne ke liye paas ka centre kahan hai?',
+                a: 'Didi, aap apne gaon ke Panchayat Bhavan ya Anganwadi Centre ja sakti hain. Wahan ASHA didi form bharne mein poori help karengi.',
+              },
+              en: {
+                q: 'Where is the nearest centre to apply?',
+                a: 'Sister, please visit your local Panchayat Office or Anganwadi Centre. The ASHA sister there will guide and help you submit your form for free.',
+              },
+            };
+
+            const fb = fallbackMap[currentLanguage] || fallbackMap.en;
+            const userReply: ChatMessage = {
+              id: `msg-voice-${Date.now()}`,
+              sender: 'user',
+              text: fb.q,
+              audioText: fb.q,
+            };
+            const assistantReply: ChatMessage = {
+              id: `msg-assistant-loc-${Date.now()}`,
+              sender: 'assistant',
+              text: fb.a,
+              audioText: fb.a,
+              schemeIdTarget: 'scheme-education-girl',
+              showSchemeAction: true,
+            };
+
+            setMessages((prev) => [...prev, userReply, assistantReply]);
+            speechService.speak(assistantReply.audioText, currentLanguage);
+          }, 1500);
+        }
+      },
+      currentLanguage
+    );
   };
 
   return (
