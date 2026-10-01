@@ -45,14 +45,47 @@ export const OfflinePlanView: React.FC<OfflinePlanViewProps> = ({
 
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
 
-  const planAnnouncement = `Offline guidance plan for ${scheme.title}. Five step plan: 1. Where to go: ${selectedCenter.name}, ${selectedCenter.distance} away. 2. Who can help: Citizen facilitation officer. 3. What to carry: 4 documents. 4. What to say: Use our counter card. 5. When to check: 7 working days.`;
+  const getLocalizedPlanAnnouncement = (): string => {
+    switch (currentLanguage) {
+      case 'ta':
+        return `${scheme.title} நேரடி உதவி வழிகாட்டல். 5 எளிய படிகள்: 1. எங்கு செல்ல வேண்டும்: ${selectedCenter.name}, தொலைவு ${selectedCenter.distance}. 2. யாரைச் சந்திக்க வேண்டும்: உதவி மைய அலுவலர். 3. கொண்டு செல்ல வேண்டியவை: தேவையான ஆவணங்கள். 4. என்ன கூற வேண்டும்: எங்கள் கோரிக்கை அட்டை. 5. நிலை அறிதல்: 7 வேலை நாட்கள்.`;
+      case 'hi':
+        return `${scheme.title} के लिए नज़दीकी सहायता योजना। 5 आसान चरण: 1. कहाँ जाएँ: ${selectedCenter.name}, दूरी ${selectedCenter.distance}। 2. किससे मिलें: नागरिक सुविधा सहायक। 3. साथ क्या ले जाएँ: ज़रूरी दस्तावेज़। 4. क्या बोलें: हमारा सहायता कार्ड दिखाएँ। 5. कब जाँचें: 7 कार्य दिवस।`;
+      case 'te':
+        return `${scheme.title} సహాయ మార్గదర్శకత్వం. 5 సులభ దశలు: 1. ఎక్కడికి వెళ్లాలి: ${selectedCenter.name}, దూరం ${selectedCenter.distance}. 2. ఎవరిని కలవాలి: సహాయ కేంద్రం అధికారి. 3. వెంట ఏమి తీసుకెళ్లాలి: అవసరమైన పత్రాలు. 4. అక్కడ ఏమి చెప్పాలి: సహాయ సందేశం. 5. తనిఖీ: 7 రోజుల్లో.`;
+      case 'bn':
+        return `${scheme.title} সরাসরি সহায়তা নির্দেশিকা। ৫টি সহজ ধাপ: ১. কোথায় যাবেন: ${selectedCenter.name}, দূরত্ব ${selectedCenter.distance}। ২. কার সাথে দেখা করবেন: সহায়তা কর্মী। ৩. সাথে কি নেবেন: প্রয়োজনীয় কাগজপত্র। ৪. কী বলবেন: সাহায্য কার্ডটি দেখান। ৫. পরবর্তী আপডেট: ৭ কার্যদিবস।`;
+      case 'mr':
+        return `${scheme.title} थेट मदत नियोजन. ५ सोप्या पायऱ्या: १. कुठे जावे: ${selectedCenter.name}, अंतर ${selectedCenter.distance}. २. कोणाला भेटावे: मदत कक्ष अधिकारी. ३. सोबत काय न्यावे: आवश्यक कागदपत्रे. ४. काय बोलावे: आमचा संदेश दाखवा. ५. पुढील पाठपुरावा: ७ कामकाजाचे दिवस.`;
+      case 'kn':
+        return `${scheme.title} ನೇರ ಸಹಾಯ ಯೋಜನೆ. 5 ಸರಳ ಹಂತಗಳು: 1. ಎಲ್ಲಿಗೆ ಹೋಗಬೇಕು: ${selectedCenter.name}, ದೂರ ${selectedCenter.distance}. 2. ಯಾರನ್ನು ಭೇಟಿಯಾಗಬೇಕು: ಸಹಾಯ ಕೇಂದ್ರದ ಅಧಿಕಾರಿ. 3. ಜತೆಯಲ್ಲಿ ಏನು ಒಯ್ಯಬೇಕು: ಅಗತ್ಯ ದಾಖಲೆಗಳು. 4. ಏನು ಹೇಳಬೇಕು: ನಮ್ಮ ಸಂದೇಶ ಕಾರ್ಡ್. 5. ಪರಿಶೀಲನೆ: 7 ದಿನಗಳಲ್ಲಿ.`;
+      case 'gu':
+        return `${scheme.title} સહાય માર્ગદર્શિકા. ૫ સરળ પગલાં: ૧. ક્યાં જવું: ${selectedCenter.name}, અંતર ${selectedCenter.distance}. ૨. કોને મળવું: સહાયક કર્મચારી. ૩. સાથે શું લઈ જવું: જરૂરી દસ્તાવેજો. ૪. શું કહેવું: અમારી સહાય સ્ક્રીન બતાવો. ૫. ચકાસણી: ૭ દિવસમાં.`;
+      case 'ml':
+        return `${scheme.title} സഹായ നിർദ്ദേശങ്ങൾ. 5 ലളിത ഘട്ടങ്ങൾ: 1. എവിടെ പോകണം: ${selectedCenter.name}, ദൂരം ${selectedCenter.distance}. 2. ആരെ കാണണം: ഹെൽപ്പ് ഡെസ്ക് ഉദ്യോഗസ്ഥൻ. 3. കരുതേണ്ടവ: ആവശ്യമായ രേഖകൾ. 4. എന്തു പറയണം: സഹായ കാർഡ് കാണിക്കുക. 5. അടുത്ത പരിശോധന: 7 ദിവസത്തിനുള്ളിൽ.`;
+      case 'pa':
+        return `${scheme.title} ਸਹਾਇਤਾ ਗਾਈਡ। 5 ਆਸਾਨ ਕਦਮ: 1. ਕਿੱਥੇ ਜਾਣਾ ਹੈ: ${selectedCenter.name}, ਦੂਰੀ ${selectedCenter.distance}। 2. ਕਿਸ ਨੂੰ ਮਿਲਣਾ ਹੈ: ਸਹਾਇਤਾ ਅਧਿਕਾਰੀ। 3. ਨਾਲ ਕੀ ਲੈ ਜਾਣਾ ਹੈ: ਲੋੜੀਂਦੇ ਕਾਗਜ਼ਾਤ। 4. ਕੀ ਕਹਿਣਾ ਹੈ: ਸਾਡਾ ਕਾਰਡ ਦਿਖਾਓ। 5. ਜਾਂਚ: 7 ਕੰਮਕਾਜੀ ਦਿਨਾਂ ਵਿੱਚ।`;
+      case 'od':
+        return `${scheme.title} ସହାୟତା ମାର୍ଗଦର୍ଶିକା। ୫ଟି ପଦକ୍ଷେପ: ୧. କେଉଁଠାକୁ ଯିବେ: ${selectedCenter.name}, ଦୂରତା ${selectedCenter.distance}। ୨. କାହାକୁ ଭେଟିବେ: ସହାୟକ ଅଧିକାରୀ। ୩. ସାଥିରେ କଣ ନେବେ: କାଗଜପତ୍ର। ୪. କଣ କହିବେ: ଆମର ସହାୟତା କାର୍ଡ଼। ୫. ଯାଞ୍ଚ: ୭ କାର୍ଯ୍ୟଦିବସ।`;
+      case 'as':
+        return `${scheme.title} সহায় নিৰ্দেশনা। ৫টা খোজ: ১. ক’লৈ যাব: ${selectedCenter.name}, দূৰত্ব ${selectedCenter.distance}। ২. কাক লগ পাব: সহায়ক বিষয়া। ৩. লগত কি নিব: প্ৰয়োজনীয় নথিপত্ৰ। ৪. কি ক’ব: সাহায্য কাৰ্ডখন দেখুৱাওক। ৫. পৰৱৰ্তী খবৰ: ৭ কাৰ্যদিনৰ ভিতৰত।`;
+      case 'ur':
+        return `${scheme.title} کی رہنمائی کا منصوبہ۔ 5 آسان مراحل: 1. کہاں جانا ہے: ${selectedCenter.name}، فاصلہ ${selectedCenter.distance}۔ 2. کس سے ملنا ہے: معاون اہلکار۔ 3. ساتھ کیا لے جانا ہے: ضروری دستاویزات۔ 4. کیا کہنا ہے: کارڈ دکھائیں۔ 5. اگلا قدم: 7 کام کے دن۔`;
+      case 'hinglish':
+        return `${scheme.title} ke liye nearby help plan. 5 easy steps: 1. Kahan jana hai: ${selectedCenter.name}, distance ${selectedCenter.distance}. 2. Kisse milna hai: Citizen facilitation officer. 3. Saath kya le jana hai: Required documents. 4. Kya bolna hai: Show our counter card. 5. Kab check karein: 7 working days.`;
+      default:
+        return `Offline guidance plan for ${scheme.title}. Five step plan: 1. Where to go: ${selectedCenter.name}, ${selectedCenter.distance} away. 2. Who can help: Citizen facilitation officer. 3. What to carry: Required documents. 4. What to say: Use our counter card. 5. When to check: 7 working days.`;
+    }
+  };
+
+  const planAnnouncement = getLocalizedPlanAnnouncement();
 
   useEffect(() => {
     speechService.speak(planAnnouncement, currentLanguage, 1.0);
     return () => {
       speechService.stop();
     };
-  }, [currentLanguage]);
+  }, [currentLanguage, selectedCenter]);
 
   const handleSave = () => {
     onSavePlan();

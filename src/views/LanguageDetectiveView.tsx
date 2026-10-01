@@ -87,7 +87,8 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
           // If mic error or permission denied, fallback smoothly to AI preset flow
           console.warn('Microphone recognition notice:', err);
           simulateAIPresetFlow(demoSelectedLang);
-        }
+        },
+        demoSelectedLang
       );
     } else {
       simulateAIPresetFlow(demoSelectedLang);
@@ -285,9 +286,47 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
             )}
 
             {/* Privacy Reassurance Note */}
-            <div className="flex items-center gap-2 text-xs text-[#B7BDD3] max-w-sm">
+            <div className="flex items-center gap-2 text-xs text-[#B7BDD3] max-w-sm mb-6">
               <ShieldCheck size={18} className="text-[#45C27C] shrink-0" />
               <span>Your voice is processed safely to detect language and request.</span>
+            </div>
+
+            {/* Quick 14-Language Immediate Select & Voice Test Grid */}
+            <div className="pt-4 border-t border-[#9B5DE5]/20 w-full max-w-lg">
+              <div className="flex items-center justify-between mb-3 px-1">
+                <span className="text-xs font-bold text-[#F3A6C8] flex items-center gap-1.5">
+                  <Sparkles size={14} />
+                  <span>Tap any language to hear & continue:</span>
+                </span>
+                <span className="text-[11px] text-[#45C27C] font-semibold bg-[#45C27C]/10 px-2 py-0.5 rounded-full border border-[#45C27C]/30">
+                  14 Indian Languages
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-left">
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => {
+                      setDemoSelectedLang(lang.code);
+                      handleSuccessfulDetection(lang.code, lang.demoPhrase, 98);
+                    }}
+                    className="p-2.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 hover:border-[#F3A6C8] transition-all group cursor-pointer shadow-sm hover:scale-[1.02]"
+                    title={`Hear ${lang.name} voice and select`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-white group-hover:text-[#F3A6C8] transition-colors">
+                        {lang.nativeName}
+                      </span>
+                      <Volume2 size={13} className="text-[#C9A7FF] group-hover:text-white shrink-0" />
+                    </div>
+                    <span className="text-[10px] text-[#B7BDD3] block mt-0.5">
+                      {lang.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}

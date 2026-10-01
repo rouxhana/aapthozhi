@@ -47,7 +47,7 @@ export const SchemeDetailView: React.FC<SchemeDetailViewProps> = ({
 
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
 
-  const fullAnnouncement = `${scheme.title}. ${scheme.description}. What this helps with: ${scheme.benefits.slice(0, 2).join('. ')}. Required documents: ${scheme.documents.map((d) => d.name).join(', ')}.`;
+  const fullAnnouncement = `${scheme.title}. ${scheme.description}. ${t.whatItHelpsWith}: ${scheme.benefits.slice(0, 2).join('. ')}. ${t.documentsNeeded}: ${scheme.documents.map((d) => d.name).join(', ')}.`;
 
   useEffect(() => {
     // Read scheme introduction

@@ -100,9 +100,25 @@ class VoiceDetectionService {
       this.isListening = true;
       // If a preferred language is provided, configure recognition locale
       if (preferredLangCode) {
-        this.recognition.lang = preferredLangCode;
+        const localeMap: Record<string, string> = {
+          ta: 'ta-IN',
+          hi: 'hi-IN',
+          bn: 'bn-IN',
+          te: 'te-IN',
+          mr: 'mr-IN',
+          kn: 'kn-IN',
+          gu: 'gu-IN',
+          ml: 'ml-IN',
+          pa: 'pa-IN',
+          ur: 'ur-IN',
+          od: 'or-IN',
+          as: 'as-IN',
+          hinglish: 'hi-IN',
+          en: 'en-IN',
+        };
+        this.recognition.lang = localeMap[preferredLangCode] || preferredLangCode;
       } else {
-        // Multi-accent detection
+        // Multi-accent detection default
         this.recognition.lang = 'hi-IN';
       }
 

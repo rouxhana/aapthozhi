@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LanguageCode, SchemeInfo, UserState } from './types';
 import { storageService } from './services/storageService';
-import { SCHEMES_DATA } from './data/schemes';
+import { SCHEMES_DATA, getLocalizedScheme } from './data/schemes';
 import { SUPPORTED_LANGUAGES } from './data/languages';
 import { TRANSLATIONS } from './data/translations';
 import { Header } from './components/Header';
@@ -56,8 +56,9 @@ export const App: React.FC = () => {
     setUserState(updated);
   };
 
-  const currentScheme =
+  const rawScheme =
     SCHEMES_DATA.find((s) => s.id === selectedSchemeId) || SCHEMES_DATA[0];
+  const currentScheme = getLocalizedScheme(rawScheme, userState.selectedLanguage);
 
   const unreadNotificationCount = userState.notifications.filter((n) => !n.read).length;
 

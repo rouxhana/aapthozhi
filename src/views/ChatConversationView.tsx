@@ -13,10 +13,44 @@ import {
 } from 'lucide-react';
 import { LanguageCode, SchemeInfo } from '../types';
 import { TRANSLATIONS } from '../data/translations';
-import { SCHEMES_DATA } from '../data/schemes';
+import { SCHEMES_DATA, getLocalizedScheme } from '../data/schemes';
 import { SpeakerButton } from '../components/SpeakerButton';
 import { ExplainSlowlyModal } from '../components/ExplainSlowlyModal';
 import { speechService } from '../services/speechService';
+
+const DEFAULT_QUERIES: Record<LanguageCode, string> = {
+  ta: 'என் மகளின் கல்வி உதவிக்கு திட்டம் வேண்டும்.',
+  hi: 'मुझे अपनी बेटी की पढ़ाई के लिए छात्रवृत्ति सहायता चाहिए।',
+  te: 'నా కుమార్తె చదువు కోసం విద్యా సహాయం కావాలి.',
+  bn: 'আমার মেয়ের পড়াশোনার জন্য শিক্ষা অনুদান সাহায্য দরকার।',
+  mr: 'माझ्या मुलीच्या शिक्षणासाठी शिष्यवृत्तीची मदत हवी आहे.',
+  kn: 'ನನ್ನ ಮಗಳ ವಿದ್ಯಾಭ್ಯಾಸಕ್ಕಾಗಿ ಶೈಕ್ಷಣಿಕ ನೆರವು ಬೇಕು.',
+  gu: 'મારી દીકરીના અભ્યાસ માટે સરકારી સહાય જોઈએ છે.',
+  ml: 'എന്റെ മകളുടെ പഠനത്തിനായുള്ള വിദ്യാഭ്യാസ സഹായം വേണം.',
+  pa: 'ਮੈਨੂੰ ਆਪਣੀ ਧੀ ਦੀ ਪੜ੍ਹਾਈ ਲਈ ਵਜ਼ੀਫ਼ਾ ਸਹਾਇਤਾ ਚਾਹੀਦੀ ਹੈ।',
+  od: 'ମୋ ଝିଅର ପାଠପଢ଼ା ପାଇଁ ଶିକ୍ଷା ସହାୟତା ଦରକାର।',
+  as: 'মোৰ ছোৱালীৰ পঢ়া-শুনাৰ বাবে শিক্ষা সাহায্য লাগে।',
+  ur: 'مجھے اپنی بیٹی کی تعلیم کے لیے وظیفے کی مدد چاہیے۔',
+  hinglish: 'Mujhe apni beti ki padhai ke liye scholarship help chahiye.',
+  en: 'I need help for my daughter’s education.',
+};
+
+const ASSISTANT_REPLIES: Record<LanguageCode, string> = {
+  ta: 'வணக்கம்! உங்கள் மகளின் கல்வி உதவித்தொகை பற்றிய தகவல் இதோ. பாலிகா சிக்ஷா திட்டத்தின் கீழ் ஆண்டுதோறும் பள்ளி உதவித்தொகை, இலவச சீருடை மற்றும் புத்தகங்கள் கிடைக்கும். பள்ளி சான்றிதழ், ஆதார் அட்டை, மற்றும் வங்கி பாஸ்புக் ஆகிய 3 ஆவணங்கள் மட்டும் தேவை.',
+  hi: 'नमस्ते! आपकी बेटी की पढ़ाई के लिए सहायता की जानकारी यहाँ है। बालिका शिक्षा योजना के तहत सालाना छात्रवृत्ति, मुफ्त किताबें और यूनिफॉर्म मिलते हैं। बस 3 मुख्य दस्तावेज़ चाहिए: स्कूल सर्टिफिकेट, आधार कार्ड और बैंक पासबुक।',
+  te: 'నమస్కారం! మీ అమ్మాయి చదువు కోసం ప్రభుత్వ సహాయం వివరాలు ఇక్కడ ఉన్నాయి. బాలికా శిక్షా పథకం ద్వారా వార్షిక ఉపకార వేతనం, పుస్తకాలు, యూనిఫాం లభిస్తాయి. స్కూల్ సర్టిఫికెట్, ఆధార్, బ్యాంక్ పాస్‌బుక్ ఉంటే చాలు.',
+  bn: 'নমস্কার! আপনার মেয়ের পড়াশোনার সহায়তার জন্য সমস্ত তথ্য এখানে রয়েছে। বালিকা শিক্ষা কল্যাণ অনুদানের অধীনে বার্ষিক বৃত্তি, বই এবং ইউনিফর্ম পাওয়া যায়। স্কুল সার্টিফিকেট, আধার কার্ড ও ব্যাংক পাসবই জমা দিলেই হবে।',
+  mr: 'नमस्ते! आपल्या मुलीच्या शिक्षणासाठी शासकीय मदतीची माहिती येथे आहे. बालिका शिक्षा अनुदानांतर्गत वार्षिक शिष्यवृत्ती, पुस्तके व गणवेश मिळतात. शाळा प्रमाणपत्र, आधार कार्ड आणि बँक पासबुक आवश्यक आहेत.',
+  kn: 'ನಮಸ್ಕಾರ! ನಿಮ್ಮ ಮಗಳ ವಿದ್ಯಾಭ್ಯಾಸದ ನೆರವಿಗಾಗಿ ಮಾಹಿತಿ ಇಲ್ಲಿದೆ. ಬಾಲಿಕಾ ಶಿಕ್ಷಣ ಯೋಜನೆಯಡಿ ವಾರ್ಷಿಕ ವಿದ್ಯಾರ್ಥಿವೇತನ, ಪುಸ್ತಕಗಳು ಮತ್ತು ಸಮವಸ್ತ್ರ ಸಿಗುತ್ತದೆ. ಶಾಲೆ ಪ್ರಮಾಣಪತ್ರ, ಆಧಾರ್ ಕಾರ್ಡ್ ಮತ್ತು ಬ್ಯಾಂಕ್ ಪಾಸ್‌ಬುಕ್ ಅಗತ್ಯವಿದೆ.',
+  gu: 'નમસ્તે! તમારી દીકરીના શિક્ષણ માટે સહાયની વિગતો અહીં છે. બાલિકા શિક્ષણ યોજના હેઠળ વાર્ષિક શિષ્યવૃત્તિ, પુસ્તકો અને ગણવેશ મળે છે. સ્કૂલ સર્ટિફિકેટ, આધાર કાર્ડ અને બેંક પાસબુક જોઈએ.',
+  ml: 'നമസ്കാരം! നിങ്ങളുടെ മകളുടെ വിദ്യാഭ്യാസ സഹായ വിവരങ്ങൾ ഇതാ. ബാലികാ ശിക്ഷാ പദ്ധതി പ്രകാരം വാർഷിക സ്കോളർഷിപ്പും പുസ്തകങ്ങളും യൂണിഫോമും ലഭിക്കും. സ്കൂൾ സർട്ടിഫിക്കറ്റ്, ആധാർ കാർഡ്, ബാങ്ക് പാസ്ബുക്ക് എന്നിവ മതി.',
+  pa: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਤੁਹਾਡੀ ਧੀ ਦੀ ਪੜ੍ਹਾਈ ਲਈ ਸਹਾਇਤਾ ਦੀ ਜਾਣਕਾਰੀ ਇੱਥੇ ਹੈ। ਬਾਲਿਕਾ ਸਿੱਖਿਆ ਯੋਜਨਾ ਤਹਿਤ ਸਾਲਾਨਾ ਵਜ਼ੀਫ਼ਾ, ਕਿਤਾਬਾਂ ਅਤੇ ਵਰਦੀਆਂ ਮਿਲਦੀਆਂ ਹਨ। ਸਕੂਲ ਸਰਟੀਫਿਕੇਟ, ਆਧਾਰ ਕਾਰਡ ਅਤੇ ਬੈਂਕ ਪਾਸਬੁੱਕ ਚਾਹੀਦੀ ਹੈ।',
+  od: 'ନମସ୍କାର! ଆପଣଙ୍କ ଝିଅର ପାଠପଢ଼ା ସହାୟତା ପାଇଁ ସୂଚନା ଏଠାରେ ଅଛି। ବାଳିକା ଶିକ୍ଷା ଯୋଜନାରେ ବାର୍ଷିକ ବୃତ୍ତି, ବହି ଓ ପୋଷାକ ମିଳିଥାଏ। ସ୍କୁଲ ସାର୍ଟିଫିକେଟ୍, ଆଧାର ଓ ବ୍ୟାଙ୍କ ପାସବୁକ୍ ଆବଶ୍ୟକ।',
+  as: 'নমস্কাৰ! আপোনাৰ ছোৱালীৰ শিক্ষা সাহায্যৰ বিষয়ে সকলো তথ্য ইয়াত আছে। বালিকা শিক্ষা আঁচনিৰ অধীনত বাৰ্ষিক বৃত্তি, কিতাপ আৰু সাজ-পোছাক পোৱা যায়। স্কুল প্ৰমাণপত্ৰ, আধাৰ আৰু বেংক পাছবুক প্ৰয়োজন।',
+  ur: 'السلام علیکم! آپ کی بیٹی کی تعلیم کے لیے سرکاری امداد کی معلومات یہاں موجود ہیں۔ بالیکا شکشا اسکیم کے تحت سالانہ وظیفہ، کتابیں اور یونیفارم دی جاتی ہیں۔ اسکول سرٹیفکیٹ، آدھار کارڈ اور بینک پاس بک درکار ہیں۔',
+  hinglish: 'Namaste! Aapki beti ki padhai ke liye help ki details yahan hain. Balika Shiksha Yojana ke under annual grant, free books aur uniform milti hai. Bas 3 documents chahiye: school certificate, aadhaar card aur bank passbook.',
+  en: 'Namaste! I understand you want education support for your daughter. Under the Balika Shiksha Welfare Grant, eligible families receive annual school grants, free books, and uniforms. You only need 3 main papers to apply: her school study certificate, her Aadhaar card, and your bank passbook.',
+};
 
 interface ChatMessage {
   id: string;
@@ -36,7 +70,7 @@ interface ChatConversationViewProps {
 
 export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
   currentLanguage,
-  initialQuery = 'I need help for my daughter’s education.',
+  initialQuery,
   onOpenScheme,
   onBack,
 }) => {
@@ -47,29 +81,32 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
   const [customInputText, setCustomInputText] = useState('');
 
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
-  const currentScheme = SCHEMES_DATA[0]; // Education Support by default for the demo
+  const currentScheme = getLocalizedScheme(SCHEMES_DATA[0], currentLanguage);
 
   useEffect(() => {
-    // Initialize friendly conversation sequence
+    // Select localized initial user query and assistant response
+    const resolvedUserQuery = initialQuery || DEFAULT_QUERIES[currentLanguage] || DEFAULT_QUERIES.en;
+    const resolvedAssistantReply = ASSISTANT_REPLIES[currentLanguage] || ASSISTANT_REPLIES.en;
+
     const userMsg: ChatMessage = {
       id: 'msg-1',
       sender: 'user',
-      text: initialQuery,
-      audioText: initialQuery,
+      text: resolvedUserQuery,
+      audioText: resolvedUserQuery,
     };
 
     const assistantMsg: ChatMessage = {
       id: 'msg-2',
       sender: 'assistant',
-      text: `Namaste! I understand you want education support for your daughter. Under the Balika Shiksha Welfare Grant, eligible families receive annual school grants, free books, and uniforms. You only need 3 main papers to apply: her school study certificate, her Aadhaar card, and your bank passbook.`,
-      audioText: `Namaste! I understand you want education support for your daughter. Under the Balika Shiksha Welfare Grant, eligible families receive annual school grants, free books, and uniforms. You only need 3 main papers to apply: her school study certificate, her Aadhaar card, and your bank passbook.`,
+      text: resolvedAssistantReply,
+      audioText: resolvedAssistantReply,
       schemeIdTarget: 'scheme-education-girl',
       showSchemeAction: true,
     };
 
     setMessages([userMsg, assistantMsg]);
 
-    // Speak initial assistant reply
+    // Speak initial assistant reply in native language
     const timer = setTimeout(() => {
       speechService.speak(assistantMsg.audioText, currentLanguage, 1.0);
     }, 500);
@@ -89,7 +126,7 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
 
   const handleChangeWhatISaid = () => {
     setIsEditingInput(true);
-    setCustomInputText(initialQuery);
+    setCustomInputText(initialQuery || DEFAULT_QUERIES[currentLanguage] || '');
   };
 
   const handleSaveCorrection = (e: React.FormEvent) => {

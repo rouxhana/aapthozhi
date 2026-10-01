@@ -354,3 +354,5 @@ export const SCHEMES_DATA: SchemeInfo[] = [
     ],
   },
 ];
+
+export { getLocalizedScheme } from './schemeLocalization';

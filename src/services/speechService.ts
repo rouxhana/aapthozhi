@@ -149,7 +149,11 @@ class SpeechService {
     )}`;
 
     try {
-      const audio = new Audio(url);
+      const audio = document.createElement('audio');
+      audio.setAttribute('referrerpolicy', 'no-referrer');
+      (audio as any).referrerPolicy = 'no-referrer';
+      audio.crossOrigin = 'anonymous';
+      audio.src = url;
       audio.playbackRate = speed;
       this.activeAudio = audio;
 
@@ -166,7 +170,8 @@ class SpeechService {
 
       const playPromise = audio.play();
       if (playPromise !== undefined) {
-        playPromise.catch(() => {
+        playPromise.catch((err) => {
+          console.warn('Audio play attempt notice:', err);
           // If browser blocks audio autoplay or URL is restricted
           this.fallbackStrictSpeechSynthesis(chunk, lang, speed, () => {
             this.playAudioChunksSequentially(chunks, lang, speed, index + 1, onComplete);
@@ -210,16 +215,21 @@ class SpeechService {
 
         if (strictMatchingVoice) {
           utterance.voice = strictMatchingVoice;
+          utterance.onend = () => onFinish();
+          utterance.onerror = () => onFinish();
+          window.speechSynthesis.speak(utterance);
         } else if (langCode === 'en') {
           // For English, standard English voice is fine
           const englishVoice = voices.find((v) => v.lang.toLowerCase().startsWith('en'));
           if (englishVoice) utterance.voice = englishVoice;
+          utterance.onend = () => onFinish();
+          utterance.onerror = () => onFinish();
+          window.speechSynthesis.speak(utterance);
+        } else {
+          // Do not send Indian text to a mismatched English voice
+          setTimeout(() => onFinish(), 600);
+          return;
         }
-
-        utterance.onend = () => onFinish();
-        utterance.onerror = () => onFinish();
-
-        window.speechSynthesis.speak(utterance);
 
         // Safety timeout in case speech engine hangs
         const duration = Math.max(2000, (text.length / 10) * 1000 * (1 / speed));
