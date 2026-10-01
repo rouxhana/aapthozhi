@@ -152,7 +152,7 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
     setCustomInputText(initialQuery || DEFAULT_QUERIES[currentLanguage] || '');
   };
 
-  const handleSaveCorrection = (e: React.FormEvent) => {
+  const handleSaveCorrection = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customInputText.trim()) return;
 
@@ -163,7 +163,7 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
       audioText: customInputText,
     };
 
-    const aiRes = aapThozhiAIService.generateResponse(customInputText, currentLanguage);
+    const aiRes = await aapThozhiAIService.generateResponseAsync(customInputText, currentLanguage);
 
     const replyMsg: ChatMessage = {
       id: `msg-reply-${Date.now()}`,
@@ -188,11 +188,11 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
       (_interim: string) => {
         // interim
       },
-      (res: any) => {
+      async (res: any) => {
         caught = true;
         setIsListeningNext(false);
         const transcript = res.transcript;
-        const aiRes = aapThozhiAIService.generateResponse(transcript, currentLanguage);
+        const aiRes = await aapThozhiAIService.generateResponseAsync(transcript, currentLanguage);
 
         const userReply: ChatMessage = {
           id: `msg-voice-${Date.now()}`,

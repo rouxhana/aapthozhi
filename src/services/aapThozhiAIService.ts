@@ -2,6 +2,7 @@ import { LanguageCode } from '../types';
 import { voiceDetectionService } from './voiceDetectionService';
 import { schemeSearchService } from './schemeSearchService';
 import { SchemeDatabaseRecord } from '../data/schemesDatabase';
+import { geminiService } from './geminiService';
 
 export interface AapThozhiAIResponse {
   detectedLanguage: LanguageCode;
@@ -23,7 +24,34 @@ export interface AapThozhiAIResponse {
  */
 class AapThozhiAIService {
   /**
-   * Main AI response handler
+   * Async AI response handler (checks Google Gemini API first, falls back to local engine)
+   */
+  public async generateResponseAsync(
+    userQuery: string,
+    preferredLang?: LanguageCode
+  ): Promise<AapThozhiAIResponse> {
+    const cleanQuery = (userQuery || '').trim();
+    const detection = voiceDetectionService.classifyLanguageFromText(cleanQuery, preferredLang || 'ta');
+
+    if (geminiService.isAvailable()) {
+      const geminiRes = await geminiService.generateAapThozhiResponse(cleanQuery, preferredLang);
+      if (geminiRes && geminiRes.text) {
+        return {
+          detectedLanguage: detection.detectedLang,
+          languageName: detection.scriptName,
+          responseText: geminiRes.text,
+          audioText: geminiRes.text,
+          matchedScheme: geminiRes.matchedScheme,
+          actionCategory: geminiRes.matchedScheme ? 'scheme' : 'general',
+        };
+      }
+    }
+
+    return this.generateResponse(userQuery, preferredLang);
+  }
+
+  /**
+   * Synchronous offline-first AI response handler
    */
   public generateResponse(
     userQuery: string,
