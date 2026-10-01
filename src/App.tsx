@@ -6,6 +6,7 @@ import { SCHEMES_DATA, getLocalizedScheme } from './data/schemes';
 import { SUPPORTED_LANGUAGES } from './data/languages';
 import { TRANSLATIONS } from './data/translations';
 import { Header } from './components/Header';
+import { BottomNavBar } from './components/BottomNavBar';
 import { VoiceIndicatorBar } from './components/VoiceIndicatorBar';
 import { LanguageModal } from './components/LanguageModal';
 import { NotificationDrawer } from './components/NotificationDrawer';
@@ -206,6 +207,20 @@ export const App: React.FC = () => {
     currentScreen === 'auth' ||
     currentScreen === 'notif-tutorial';
 
+  // Bottom Nav: translate screen clicks into navigate actions
+  const handleBottomNavNavigate = (screen: string) => {
+    if (screen === 'home') setCurrentScreen('home');
+    else if (screen === 'point-and-ask') setCurrentScreen('point-and-ask');
+    else if (screen === 'offline-plan') setCurrentScreen('offline-plan');
+    else if (screen === 'trusted-helper') setCurrentScreen('trusted-helper');
+    else if (screen === 'safety-center') setCurrentScreen('safety-center');
+  };
+
+  const handleQuickSpeak = () => {
+    setCurrentVoiceQuery('');
+    setCurrentScreen('chat');
+  };
+
   return (
     <div className="min-h-screen bg-[#0B1026] text-white flex flex-col font-sans selection:bg-[#9B5DE5] selection:text-white">
       {/* App Header (shown on main dashboard and inner pages) */}
@@ -216,14 +231,15 @@ export const App: React.FC = () => {
           onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
           onOpenLanguageModal={() => setIsLanguageModalOpen(true)}
           onOpenPrivacySettings={() => setCurrentScreen('settings')}
+          onOpenSafety={() => setCurrentScreen('safety-center')}
           showBack={currentScreen !== 'home'}
           onBack={() => setCurrentScreen('home')}
           pageTitle={currentScreen}
         />
       )}
 
-      {/* Screen Views */}
-      <div className="flex-1 flex flex-col">
+      {/* Screen Views — pb-24 clears the fixed BottomNavBar */}
+      <div className="flex-1 flex flex-col pb-24">
         {currentScreen === 'detective' && (
           <LanguageDetectiveView
             onConfirmLanguage={handleConfirmLanguage}
@@ -329,6 +345,16 @@ export const App: React.FC = () => {
           />
         )}
       </div>
+
+      {/* Fixed Bottom Navigation Bar — big visual icons for every tool */}
+      {!isSetupScreen && (
+        <BottomNavBar
+          currentScreen={currentScreen}
+          onNavigate={handleBottomNavNavigate}
+          currentLanguage={userState.selectedLanguage}
+          onQuickSpeak={handleQuickSpeak}
+        />
+      )}
 
       {/* Global Floating Voice Playback Bar */}
       <VoiceIndicatorBar />

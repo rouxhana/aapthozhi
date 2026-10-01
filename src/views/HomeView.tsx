@@ -8,6 +8,7 @@ import {
   FileText,
   Flame,
   GraduationCap,
+  HeartHandshake,
   HeartPulse,
   HelpCircle,
   Loader2,
@@ -368,12 +369,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
   ];
 
   const categoryPills = [
-    { label: 'All', value: 'All' },
-    { label: 'Savings & Education', value: 'Savings' },
-    { label: 'Household Help', value: 'Household' },
-    { label: 'College & Education', value: 'College' },
-    { label: 'Motherhood & Health', value: 'Motherhood' },
-    { label: 'Jobs & Business', value: 'Jobs' },
+    { label: 'All Schemes', value: 'All', icon: '🌟' },
+    { label: 'Savings', value: 'Savings', icon: '💰' },
+    { label: 'Gas / Cooking', value: 'Household', icon: '🔥' },
+    { label: 'College Fees', value: 'College', icon: '🎓' },
+    { label: 'Motherhood', value: 'Motherhood', icon: '🤱' },
+    { label: 'Jobs / Skills', value: 'Jobs', icon: '🧵' },
   ];
 
   return (
@@ -505,23 +506,25 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <button
                 type="button"
                 onClick={() => setSearchInput('')}
-                className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-[#1F2B5B] text-[#B7BDD3] hover:text-white border border-[#9B5DE5]/30 transition-colors cursor-pointer"
+                className="text-xs font-bold px-3 py-1 rounded-xl bg-[#EF6A7B]/20 text-[#EF6A7B] hover:bg-[#EF6A7B] hover:text-white border border-[#EF6A7B]/40 transition-colors cursor-pointer flex items-center gap-1"
+                aria-label="Clear search"
+                title="Clear search"
               >
-                Clear
+                ✕ Clear
               </button>
             )}
             <button
               type="button"
               onClick={handleMicClick}
-              className={`p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center ${
+              className={`p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center ${
                 isMicActive
                   ? 'bg-[#EF6A7B] text-white ring-4 ring-[#EF6A7B]/40 animate-pulse'
-                  : 'bg-[#9B5DE5]/30 hover:bg-[#9B5DE5] text-[#F3A6C8] hover:text-white border border-[#9B5DE5]/50'
+                  : 'bg-[#9B5DE5]/30 hover:bg-[#9B5DE5] text-[#F3A6C8] hover:text-white border-2 border-[#9B5DE5]/50'
               }`}
               title={isMicActive ? 'Listening... click to stop' : 'Click to speak search query'}
               aria-label="Microphone search"
             >
-              {isMicActive ? <MicOff size={16} /> : <Mic size={16} />}
+              {isMicActive ? <MicOff size={20} className="stroke-[2.5]" /> : <Mic size={20} className="stroke-[2.5]" />}
             </button>
           </div>
         </div>
@@ -568,20 +571,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
           ))}
         </div>
 
-        {/* Category Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        {/* Category Tabs with big icons */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           {categoryPills.map((cat, idx) => (
             <button
               key={idx}
               type="button"
               onClick={() => setSelectedCategoryFilter(cat.value)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border-2 cursor-pointer ${
                 selectedCategoryFilter === cat.value
-                  ? 'bg-gradient-to-r from-[#9B5DE5] to-[#8338EC] text-white border-[#F3A6C8] shadow-sm'
-                  : 'bg-[#141B3B] text-[#B7BDD3] hover:text-white border-[#9B5DE5]/30'
+                  ? 'bg-gradient-to-r from-[#9B5DE5] to-[#8338EC] text-white border-[#F3A6C8] shadow-lg shadow-[#9B5DE5]/30'
+                  : 'bg-[#141B3B] text-[#B7BDD3] hover:text-white border-[#9B5DE5]/30 hover:bg-[#1A234E] hover:border-[#9B5DE5]'
               }`}
             >
-              {cat.label}
+              <span className="text-base leading-none">{cat.icon}</span>
+              <span>{cat.label}</span>
             </button>
           ))}
         </div>
@@ -700,9 +704,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setActiveWhatToSayScheme(scheme)}
-                    className="px-3 py-1.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-xs font-bold text-[#C9A7FF] hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border-2 border-[#9B5DE5]/30 hover:border-[#F3A6C8] text-xs font-bold text-[#C9A7FF] hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
-                    <HelpCircle size={14} className="text-[#F3A6C8]" />
+                    <span className="text-base">💬</span>
                     <span>What to Say</span>
                   </button>
 
@@ -716,10 +720,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             portalName: scheme.scheme_name,
                           })
                         }
-                        className="p-1.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-[#C9A7FF] hover:text-white transition-colors"
-                        title="Official portal"
+                        className="p-2 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border-2 border-[#9B5DE5]/30 hover:border-[#F3A6C8] text-[#C9A7FF] hover:text-white transition-all cursor-pointer"
+                        title="Open official portal"
+                        aria-label="Official government portal"
                       >
-                        <ExternalLink size={15} />
+                        <ExternalLink size={18} className="stroke-[2.2]" />
                       </button>
                     )}
 
@@ -732,10 +737,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           onSelectService('education');
                         }
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-[#9B5DE5] hover:bg-[#8338EC] text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-md shadow-[#9B5DE5]/30"
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#9B5DE5] to-[#8338EC] hover:from-[#8338EC] hover:to-[#7B2DE0] text-white text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-[#9B5DE5]/30 border border-white/10"
                     >
+                      <span className="text-base">📖</span>
                       <span>Full Guide</span>
-                      <ChevronRight size={14} />
                     </button>
                   </div>
                 </div>
@@ -901,19 +906,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </section>
 
       {/* Feature Shortcuts: Point & Ask, Trusted Helper, Safety Center */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <section className="grid grid-cols-3 gap-3">
         {/* Point & Ask */}
         <button
           type="button"
           onClick={onOpenPointAndAsk}
-          className="p-4 rounded-2xl bg-[#131A3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 flex items-center gap-3 text-left transition-all group cursor-pointer"
+          className="p-4 rounded-3xl bg-gradient-to-br from-[#9B5DE5]/25 to-[#F3A6C8]/15 hover:from-[#9B5DE5]/40 hover:to-[#F3A6C8]/30 border-2 border-[#9B5DE5]/40 hover:border-[#F3A6C8] flex flex-col items-center gap-2.5 text-center transition-all group cursor-pointer shadow-lg hover:shadow-xl"
+          aria-label="Point camera at any government paper"
+          title="Point & Ask: Show AapThozhi a paper"
         >
-          <div className="p-3 rounded-xl bg-[#9B5DE5]/20 text-[#F3A6C8] border border-[#9B5DE5]/40 shrink-0 group-hover:scale-105 transition-transform">
-            <Camera size={22} />
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#9B5DE5]/40 to-[#F3A6C8]/30 border-2 border-[#F3A6C8]/50 flex items-center justify-center text-[#F3A6C8] group-hover:scale-110 transition-transform shadow-md">
+            <Camera size={30} className="stroke-[2.2]" />
           </div>
           <div>
-            <span className="text-xs font-bold text-white block">Point & Ask</span>
-            <span className="text-[11px] text-[#B7BDD3]">Show AapThozhi a paper</span>
+            <span className="text-xs font-extrabold text-white block">📷 Point & Ask</span>
+            <span className="text-[10px] text-[#B7BDD3] leading-tight block">Show any paper</span>
           </div>
         </button>
 
@@ -921,14 +928,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <button
           type="button"
           onClick={onOpenTrustedHelper}
-          className="p-4 rounded-2xl bg-[#131A3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 flex items-center gap-3 text-left transition-all group cursor-pointer"
+          className="p-4 rounded-3xl bg-gradient-to-br from-[#45C27C]/25 to-emerald-500/15 hover:from-emerald-500/40 hover:to-[#45C27C]/30 border-2 border-[#45C27C]/40 hover:border-emerald-400 flex flex-col items-center gap-2.5 text-center transition-all group cursor-pointer shadow-lg hover:shadow-xl"
+          aria-label="Ask a trusted ASHA or Sakhi helper"
+          title="Trusted Helper: ASHA / Sakhi community"
         >
-          <div className="p-3 rounded-xl bg-[#45C27C]/20 text-[#45C27C] border border-[#45C27C]/40 shrink-0 group-hover:scale-105 transition-transform">
-            <Users size={22} />
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#45C27C]/40 to-emerald-500/30 border-2 border-emerald-400/50 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform shadow-md">
+            <HeartHandshake size={30} className="stroke-[2.2]" />
           </div>
           <div>
-            <span className="text-xs font-bold text-white block">Trusted Helper</span>
-            <span className="text-[11px] text-[#B7BDD3]">ASHA / Sakhi community</span>
+            <span className="text-xs font-extrabold text-white block">🤝 Helper</span>
+            <span className="text-[10px] text-[#B7BDD3] leading-tight block">ASHA / Sakhi</span>
           </div>
         </button>
 
@@ -936,14 +945,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <button
           type="button"
           onClick={onOpenSafetyCenter}
-          className="p-4 rounded-2xl bg-[#131A3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 flex items-center gap-3 text-left transition-all group cursor-pointer"
+          className="p-4 rounded-3xl bg-gradient-to-br from-[#EF6A7B]/25 to-rose-600/15 hover:from-[#EF6A7B]/40 hover:to-rose-600/30 border-2 border-[#EF6A7B]/40 hover:border-rose-400 flex flex-col items-center gap-2.5 text-center transition-all group cursor-pointer shadow-lg hover:shadow-xl"
+          aria-label="Emergency 181 helpline and safety center"
+          title="Safety 181: Emergency & Fraud protection"
         >
-          <div className="p-3 rounded-xl bg-[#EF6A7B]/20 text-[#EF6A7B] border border-[#EF6A7B]/40 shrink-0 group-hover:scale-105 transition-transform">
-            <Shield size={22} />
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#EF6A7B]/40 to-rose-600/30 border-2 border-rose-400/50 flex items-center justify-center text-[#EF6A7B] group-hover:scale-110 transition-transform shadow-md">
+            <Shield size={30} className="stroke-[2.2]" />
           </div>
           <div>
-            <span className="text-xs font-bold text-white block">Safety Center</span>
-            <span className="text-[11px] text-[#B7BDD3]">Zero-fraud protection</span>
+            <span className="text-xs font-extrabold text-white block">🛡️ 181 Safety</span>
+            <span className="text-[10px] text-[#B7BDD3] leading-tight block">Zero-fraud</span>
           </div>
         </button>
       </section>
