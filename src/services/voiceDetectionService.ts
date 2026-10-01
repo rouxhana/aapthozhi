@@ -322,24 +322,54 @@ class VoiceDetectionService {
   }
 
   public isSpeechRecognitionSupported(): boolean {
-    return this.recognition !== null;
+    if (typeof window === 'undefined') return false;
+    return !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
   }
 
   /**
    * Listen to real microphone stream via Web Speech API
    */
-  public startListening(
+  public async startListening(
     onInterim: (text: string) => void,
     onResult: (result: DetectionResult) => void,
     onError: (error: string) => void,
     preferredLangCode?: string
-  ): void {
-    if (!this.recognition) {
-      onError('Browser does not support native speech recognition. Using AI preset engine.');
+  ): Promise<void> {
+    const SpeechRec =
+      typeof window !== 'undefined'
+        ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+        : null;
+
+    if (!SpeechRec) {
+      onError('Browser does not support native speech recognition. Please tap your language card.');
       return;
     }
 
+    // Request microphone permission dialog if needed
     try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const testStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        testStream.getTracks().forEach((track) => track.stop());
+      }
+    } catch (permErr: any) {
+      console.warn('[VoiceDetectionService] Mic permission notice:', permErr);
+    }
+
+    try {
+      // Abort any existing recognition instance to prevent "already started" errors
+      if (this.recognition) {
+        try {
+          this.recognition.abort();
+        } catch {
+          // ignore
+        }
+        this.recognition = null;
+      }
+
+      this.recognition = new SpeechRec();
+      this.recognition.continuous = false;
+      this.recognition.interimResults = true;
+      this.recognition.maxAlternatives = 3;
       this.isListening = true;
 
       // Locale mapping for Web Speech API
@@ -397,6 +427,7 @@ class VoiceDetectionService {
 
       this.recognition.onerror = (event: any) => {
         this.isListening = false;
+        console.warn('[VoiceDetectionService] Error event:', event.error);
         onError(event.error || 'Speech recognition encountered an issue.');
       };
 
@@ -407,17 +438,19 @@ class VoiceDetectionService {
       this.recognition.start();
     } catch (e: any) {
       this.isListening = false;
+      console.warn('[VoiceDetectionService] Start failed:', e);
       onError(e.message || 'Microphone activation failed.');
     }
   }
 
   public stopListening(): void {
-    if (this.recognition && this.isListening) {
+    if (this.recognition) {
       try {
-        this.recognition.stop();
+        this.recognition.abort();
       } catch {
         // ignore
       }
+      this.recognition = null;
     }
     this.isListening = false;
     this.stopAudioVisualizer();

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ArrowLeft,
   Bot,
   ChevronRight,
   Loader2,
@@ -283,9 +284,12 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="px-3 py-1.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-xs text-[#C9A7FF] font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+          className="px-3.5 py-2 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border-2 border-[#9B5DE5]/30 hover:border-[#F3A6C8] text-xs text-[#C9A7FF] hover:text-white font-bold flex items-center gap-2 cursor-pointer transition-colors"
+          aria-label="Go back to Home"
+          title="Back to Home"
         >
-          ← Back
+          <ArrowLeft size={16} className="stroke-[2.5]" />
+          <span>Back</span>
         </button>
 
         <div className="flex items-center gap-2">

@@ -93,9 +93,71 @@ export const LandingPage: React.FC = () => {
           {/* Large pulsing mic demo */}
           <MicPulse onClick={() => window.location.href = '#/app'} />
 
-          <p style={{ fontSize: '0.8125rem', color: '#7882A4', marginTop: '-0.5rem' }}>
-            Tap the mic above · Works in Tamil, Hindi, Telugu, Kannada, Marathi & more
+          <p style={{ fontSize: '0.875rem', color: '#B7BDD3', marginTop: '-0.5rem', fontWeight: 600 }}>
+            🎙️ <strong>Step 1:</strong> Tap the mic above to speak, or tap your language below to begin immediately:
           </p>
+
+          {/* Quick-start 14 Language Cards with Icons right on Landing Page */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+            gap: '0.625rem',
+            maxWidth: 720,
+            margin: '1.25rem auto 0',
+            textAlign: 'center',
+          }}>
+            {[
+              { code: 'ta', native: 'தமிழ்', name: 'Tamil', icon: '🌸' },
+              { code: 'hi', native: 'हिन्दी', name: 'Hindi', icon: '🪔' },
+              { code: 'te', native: 'తెలుగు', name: 'Telugu', icon: '🌾' },
+              { code: 'kn', native: 'ಕನ್ನಡ', name: 'Kannada', icon: '🌺' },
+              { code: 'mr', native: 'मराठी', name: 'Marathi', icon: '🚩' },
+              { code: 'bn', native: 'বাংলা', name: 'Bengali', icon: '🌼' },
+              { code: 'gu', native: 'ગુજરાતી', name: 'Gujarati', icon: '🪁' },
+              { code: 'ml', native: 'മലയാളം', name: 'Malayalam', icon: '🌴' },
+              { code: 'pa', native: 'ਪੰਜਾਬੀ', name: 'Punjabi', icon: '🌾' },
+              { code: 'od', native: 'ଓଡ଼ିଆ', name: 'Odia', icon: '🐚' },
+              { code: 'as', native: 'অসমীয়া', name: 'Assamese', icon: '🦏' },
+              { code: 'ur', native: 'اردو', name: 'Urdu', icon: '🌙' },
+              { code: 'hinglish', native: 'Hinglish', name: 'Mix', icon: '🗣️' },
+              { code: 'en', native: 'English', name: 'India', icon: '🌐' },
+            ].map(item => (
+              <Link
+                key={item.code}
+                to="/app"
+                onClick={() => {
+                  try {
+                    const raw = localStorage.getItem('aapthozhi_user_state_v1');
+                    const parsed = raw ? JSON.parse(raw) : {};
+                    parsed.selectedLanguage = item.code;
+                    parsed.hasCompletedLanguageDetection = true;
+                    localStorage.setItem('aapthozhi_user_state_v1', JSON.stringify(parsed));
+                  } catch {
+                    // ignore
+                  }
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  padding: '0.75rem 0.5rem',
+                  borderRadius: '1rem',
+                  background: '#141B3B',
+                  border: '1.5px solid rgba(155,93,229,0.3)',
+                  textDecoration: 'none',
+                  color: '#fff',
+                  transition: 'all 0.18s',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                }}
+                className="landing-lang-card"
+                aria-label={`Start AapThozhi in ${item.name} (${item.native})`}
+              >
+                <span style={{ fontSize: '1.35rem', marginBottom: '0.2rem' }}>{item.icon}</span>
+                <strong style={{ fontSize: '0.9375rem', color: '#fff', lineHeight: 1.2 }}>{item.native}</strong>
+                <span style={{ fontSize: '0.75rem', color: '#B7BDD3' }}>{item.name}</span>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 

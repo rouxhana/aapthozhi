@@ -40,12 +40,8 @@ type AppScreen =
 
 export const App: React.FC = () => {
   const [userState, setUserState] = useState<UserState>(() => storageService.getState());
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>(() => {
-    const s = storageService.getState();
-    if (!s.hasCompletedLanguageDetection) return 'detective';
-    if (!s.hasSeenNotificationTutorial) return 'notif-tutorial';
-    return 'home';
-  });
+  // ALWAYS start at 'detective' (Language Detection) so Step 1 is language detection!
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>('detective');
 
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>('scheme-education-girl');
   const [currentVoiceQuery, setCurrentVoiceQuery] = useState<string>('I need help for my daughter’s education.');
@@ -66,13 +62,13 @@ export const App: React.FC = () => {
 
   const unreadNotificationCount = userState.notifications.filter((n) => !n.read).length;
 
-  // Flow Step 1 -> Step 2: Language Detected & Confirmed
+  // Flow Step 1 -> Language Detected & Confirmed -> Directly into Home in that language!
   const handleConfirmLanguage = (lang: LanguageCode) => {
     updateState({
       selectedLanguage: lang,
       hasCompletedLanguageDetection: true,
     });
-    setCurrentScreen('regional-consent');
+    setCurrentScreen('home');
   };
 
   // Flow Step 2 -> Step 3: Location Allowed
