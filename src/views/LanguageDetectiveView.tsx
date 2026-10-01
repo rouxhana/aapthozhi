@@ -18,7 +18,7 @@ import { speechService } from '../services/speechService';
 import { voiceDetectionService } from '../services/voiceDetectionService';
 import confetti from 'canvas-confetti';
 
-export const REGIONAL_ICONS: Record<string, string> = {
+const REGIONAL_ICONS: Record<string, string> = {
   ta: '🌸',
   hi: '🪔',
   te: '🌾',
