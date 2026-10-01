@@ -197,14 +197,16 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
   };
 
   // Top prominent languages for quick filter tabs
+  // Top prominent languages for quick filter tabs
   const PRIMARY_FILTER_LANGS: { code: LanguageCode | 'auto'; label: string; native: string }[] = [
     { code: 'auto', label: 'Auto Detect', native: '🎙️ Multi-Voice' },
-    { code: 'te', label: 'Telugu', native: 'తెలుగు' },
-    { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
-    { code: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ' },
-    { code: 'mr', label: 'Marathi', native: 'मराठी' },
-    { code: 'hi', label: 'Hindi', native: 'हिन्दी' },
-    { code: 'bn', label: 'Bengali', native: 'বাংলা' },
+    { code: 'ta', label: 'Tamil', native: '🌸 தமிழ்' },
+    { code: 'te', label: 'Telugu', native: '🌾 తెలుగు' },
+    { code: 'kn', label: 'Kannada', native: '🐘 ಕನ್ನಡ' },
+    { code: 'hi', label: 'Hindi', native: '🪔 हिन्दी' },
+    { code: 'mr', label: 'Marathi', native: '🚩 मराठी' },
+    { code: 'bn', label: 'Bengali', native: '🌺 বাংলা' },
+    { code: 'en', label: 'English', native: '🌐 English' },
   ];
 
   const lowConfidenceTop3: LanguageCode[] = ['te', 'ta', 'kn'];
@@ -246,7 +248,7 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
           <button
             type="button"
             onClick={onOpenLanguageList}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-xs text-[#C9A7FF] font-medium transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-xs text-[#C9A7FF] font-medium transition-colors cursor-pointer"
           >
             <Globe size={15} className="text-[#F3A6C8]" />
             <span>All 14 Languages</span>
@@ -268,9 +270,38 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2 leading-tight max-w-lg">
               🎙️ Speak or Tap Your Language
             </h2>
-            <p className="text-xs sm:text-sm text-[#B7BDD3] max-w-md mb-6 leading-relaxed">
-              AapThozhi understands and speaks your language. Tap the microphone to speak, or tap your language card below.
+            <p className="text-xs sm:text-sm text-[#B7BDD3] max-w-md mb-4 leading-relaxed">
+              AapThozhi understands and speaks your language. Tap your language pill, or speak into the microphone.
             </p>
+
+            {/* Quick Language Target Selection Pills */}
+            <div className="flex items-center justify-center gap-1.5 flex-wrap max-w-lg mb-5" role="tablist" aria-label="Language selection pills">
+              {PRIMARY_FILTER_LANGS.map((filter) => {
+                const isActive = speakingTargetLang === filter.code;
+                return (
+                  <button
+                    key={filter.code}
+                    type="button"
+                    onClick={() => {
+                      setSpeakingTargetLang(filter.code);
+                      if (filter.code !== 'auto') {
+                        setStatusMessage(`Ready to listen in ${filter.label} (${filter.native})`);
+                      } else {
+                        setStatusMessage('Ready for Auto-Detect across all languages');
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
+                      isActive
+                        ? 'bg-gradient-to-r from-[#9B5DE5] to-[#F3A6C8] text-[#0B1026] border-transparent shadow-md scale-105'
+                        : 'bg-[#141B3B] hover:bg-[#1A234E] text-[#C9A7FF] border-[#9B5DE5]/30 hover:border-[#F3A6C8]'
+                    }`}
+                  >
+                    <span>{filter.native}</span>
+                    <span className="ml-1 opacity-80 text-[10px]">({filter.label})</span>
+                  </button>
+                );
+              })}
+            </div>
 
             {/* Giant Central Microphone Button with Animated Ripple Waves */}
             <div className="relative mb-6 flex items-center justify-center">

@@ -183,9 +183,7 @@ const ROMAN_VOCABULARY: Record<LanguageCode, string[]> = {
     'beti',
     'padhai',
     'shiksha',
-    'yojana',
     'kendra',
-    'sarkar',
     'bataiye',
     'dastavej',
     'mahila',
@@ -193,8 +191,8 @@ const ROMAN_VOCABULARY: Record<LanguageCode, string[]> = {
     'kaise',
     'hoga',
     'swasthya',
-    'pension',
     'hindi',
+    'mujhe',
   ],
   bn: [
     'nomoshkar',
@@ -205,7 +203,6 @@ const ROMAN_VOCABULARY: Record<LanguageCode, string[]> = {
     'meyeder',
     'porashona',
     'prakalpa',
-    'sarkari',
     'bangla',
     'janan',
     'amar',
@@ -217,21 +214,23 @@ const ROMAN_VOCABULARY: Record<LanguageCode, string[]> = {
     'joiye',
     'dikri',
     'bhanatar',
-    'yojana',
     'gujarati',
-    'sarkari',
     'sahay',
+    'kaho',
+    'mane',
   ],
   ml: [
     'namaskaram',
     'sahayam',
     'venam',
     'makal',
-    'paditham',
+    'makalude',
     'padanam',
+    'paditham',
     'padhathi',
     'malayalam',
     'sahayikumo',
+    'enikku',
   ],
   pa: [
     'sat',
@@ -243,7 +242,7 @@ const ROMAN_VOCABULARY: Record<LanguageCode, string[]> = {
     'parhai',
     'yojna',
     'punjabi',
-    'sarkari',
+    'dasso',
   ],
   ur: [
     'assalam',
@@ -262,9 +261,8 @@ const ROMAN_VOCABULARY: Record<LanguageCode, string[]> = {
     'darkar',
     'jhia',
     'pathapadhara',
-    'yojana',
     'odia',
-    'sarkari',
+    'kuha',
   ],
   as: [
     'namaskar',
@@ -274,7 +272,6 @@ const ROMAN_VOCABULARY: Record<LanguageCode, string[]> = {
     'shikshar',
     'achoni',
     'asomiya',
-    'sarkari',
   ],
   hinglish: [
     'namaste',
@@ -282,11 +279,9 @@ const ROMAN_VOCABULARY: Record<LanguageCode, string[]> = {
     'chahiye',
     'beti',
     'padhai',
-    'education',
-    'government',
-    'help',
-    'scheme',
-    'yojana',
+    'batao',
+    'karo',
+    'mujhe',
   ],
   en: [
     'hello',
@@ -298,6 +293,20 @@ const ROMAN_VOCABULARY: Record<LanguageCode, string[]> = {
     'pension',
     'hospital',
     'card',
+    'scholarship',
+    'school',
+    'college',
+    'money',
+    'child',
+    'children',
+    'mother',
+    'apply',
+    'application',
+    'need',
+    'help',
+    'tell',
+    'want',
+    'give',
   ],
 };
 
@@ -393,8 +402,16 @@ class VoiceDetectionService {
       if (preferredLangCode && preferredLangCode !== 'auto' && localeMap[preferredLangCode]) {
         this.recognition.lang = localeMap[preferredLangCode];
       } else {
-        // Multi-accent detection default: Indian English or Hindi
-        this.recognition.lang = 'hi-IN';
+        // Multi-accent neutral recognition: use browser locale or Indian English (en-IN)
+        // NEVER hardcode 'hi-IN' which forcibly translates all non-Hindi languages into Devanagari Hindi!
+        const navLang = typeof navigator !== 'undefined' ? (navigator.language || '') : '';
+        if (navLang.startsWith('ta')) this.recognition.lang = 'ta-IN';
+        else if (navLang.startsWith('te')) this.recognition.lang = 'te-IN';
+        else if (navLang.startsWith('kn')) this.recognition.lang = 'kn-IN';
+        else if (navLang.startsWith('mr')) this.recognition.lang = 'mr-IN';
+        else if (navLang.startsWith('bn')) this.recognition.lang = 'bn-IN';
+        else if (navLang.startsWith('hi')) this.recognition.lang = 'hi-IN';
+        else this.recognition.lang = 'en-IN';
       }
 
       this.recognition.onresult = (event: any) => {
@@ -552,7 +569,29 @@ class VoiceDetectionService {
     // 11. Roman Script / Phonetic Word Classifier
     const cleanWords = cleaned.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean);
 
-    // Score all languages against their phonetic dictionaries
+    // Check English words directly
+    const ENGLISH_COMMON = new Set([
+      'i', 'me', 'my', 'we', 'our', 'you', 'your', 'she', 'her', 'he', 'his', 'they',
+      'want', 'need', 'help', 'assistance', 'support', 'guidance', 'for', 'about', 'to',
+      'daughter', 'girl', 'girls', 'child', 'children', 'mother', 'father', 'family', 'women', 'woman',
+      'education', 'school', 'college', 'scholarship', 'study', 'studies', 'fees',
+      'scheme', 'schemes', 'pension', 'card', 'hospital', 'doctor', 'treatment',
+      'free', 'gas', 'cylinder', 'sewing', 'machine', 'money', 'financial', 'fund', 'grant',
+      'how', 'what', 'where', 'when', 'who', 'which', 'can', 'is', 'are', 'am', 'was', 'were',
+      'tell', 'explain', 'show', 'give', 'apply', 'application', 'office', 'center',
+      'government', 'state', 'national', 'portal', 'form', 'documents', 'needed',
+      'hello', 'please', 'thanks', 'thank'
+    ]);
+
+    let englishWordCount = 0;
+    for (const w of cleanWords) {
+      if (ENGLISH_COMMON.has(w)) englishWordCount++;
+    }
+    if (englishWordCount >= 2 || (cleanWords.length <= 2 && englishWordCount >= 1)) {
+      return { detectedLang: 'en', confidence: 98, scriptName: 'English (Indian English)' };
+    }
+
+    // Score all regional languages against their phonetic dictionaries
     const scores: Record<LanguageCode, number> = {
       te: 0,
       ta: 0,
@@ -570,19 +609,19 @@ class VoiceDetectionService {
       en: 0,
     };
 
-    // If user explicitly spoke in a preferred language, add strong prior
+    // If user explicitly spoke in a preferred language, add gentle prior
     if (preferredLangCode && preferredLangCode !== 'auto' && scores[preferredLangCode] !== undefined) {
-      scores[preferredLangCode] += 2;
+      scores[preferredLangCode] += 1;
     }
 
     for (const [langCode, vocabList] of Object.entries(ROMAN_VOCABULARY) as [LanguageCode, string[]][]) {
       for (const word of cleanWords) {
         if (vocabList.includes(word)) {
-          scores[langCode] += 2;
-        } else {
-          // Check substring for partial matches (e.g. namaskaramu -> namaskaram)
+          scores[langCode] += 3;
+        } else if (word.length >= 4) {
+          // Check prefix match (require word.length >= 4 and marker.length >= 4)
           for (const marker of vocabList) {
-            if (marker.length >= 4 && (word.includes(marker) || marker.includes(word))) {
+            if (marker.length >= 4 && (word.startsWith(marker) || marker.startsWith(word))) {
               scores[langCode] += 1;
               break;
             }
@@ -592,8 +631,8 @@ class VoiceDetectionService {
     }
 
     // Find the highest scoring language
-    let bestLang: LanguageCode = 'ta';
-    let highestScore = -1;
+    let bestLang: LanguageCode = preferredLangCode && preferredLangCode !== 'auto' ? preferredLangCode : 'ta';
+    let highestScore = 0;
 
     for (const [lang, score] of Object.entries(scores) as [LanguageCode, number][]) {
       if (score > highestScore) {
@@ -621,7 +660,7 @@ class VoiceDetectionService {
       };
       return {
         detectedLang: bestLang,
-        confidence: Math.min(99, 85 + highestScore * 4),
+        confidence: Math.min(99, 88 + highestScore * 3),
         scriptName: scriptNames[bestLang] || 'Regional Language',
       };
     }
