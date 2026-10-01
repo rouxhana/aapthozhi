@@ -499,14 +499,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Type your request: e.g. gas, sewing machine, college fees, pregnancy, savings, pension..."
-            className="w-full pl-11 pr-28 py-3.5 rounded-2xl bg-[#141B3B] border-2 border-[#9B5DE5]/40 focus:border-[#F3A6C8] focus:outline-none text-white placeholder-[#7882A4] text-sm font-medium transition-all shadow-inner"
+            className="w-full pl-11 pr-28 py-3.5 rounded-2xl bg-[#141B3B] border-2 border-[#9B5DE5]/40 focus:border-[#F3A6C8] focus:outline-none text-white placeholder-[#7882A4] text-base sm:text-sm font-medium transition-all shadow-inner"
           />
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
             {searchInput && (
               <button
                 type="button"
                 onClick={() => setSearchInput('')}
-                className="text-xs font-bold px-3 py-1 rounded-xl bg-[#EF6A7B]/20 text-[#EF6A7B] hover:bg-[#EF6A7B] hover:text-white border border-[#EF6A7B]/40 transition-colors cursor-pointer flex items-center gap-1"
+                className="text-xs font-bold px-3 py-1.5 min-h-[40px] rounded-xl bg-[#EF6A7B]/20 text-[#EF6A7B] hover:bg-[#EF6A7B] hover:text-white border border-[#EF6A7B]/40 transition-colors cursor-pointer flex items-center gap-1"
                 aria-label="Clear search"
                 title="Clear search"
               >
@@ -516,7 +516,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <button
               type="button"
               onClick={handleMicClick}
-              className={`p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center ${
+              className={`p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center min-w-[44px] min-h-[44px] ${
                 isMicActive
                   ? 'bg-[#EF6A7B] text-white ring-4 ring-[#EF6A7B]/40 animate-pulse'
                   : 'bg-[#9B5DE5]/30 hover:bg-[#9B5DE5] text-[#F3A6C8] hover:text-white border-2 border-[#9B5DE5]/50'

@@ -36,6 +36,8 @@ export const SiteLayout: React.FC<SiteLayoutProps> = ({
     robots.content = noindex ? 'noindex, nofollow' : 'index, follow';
   }, [title, description, noindex]);
 
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
   return (
     <div className="site-shell">
       <a href="#main-content" className="skip-link">Skip to main content</a>
@@ -43,7 +45,7 @@ export const SiteLayout: React.FC<SiteLayoutProps> = ({
       {/* ── Navigation ── */}
       <nav className="site-nav" aria-label="Primary navigation">
         <div className="site-nav-inner">
-          <Link to="/" className="site-logo" aria-label="AapThozhi Home">
+          <Link to="/" className="site-logo" aria-label="AapThozhi Home" onClick={() => setMobileMenuOpen(false)}>
             <img src="/logo.svg" alt="AapThozhi logo" />
             <span>AapThozhi</span>
           </Link>
@@ -69,10 +71,85 @@ export const SiteLayout: React.FC<SiteLayoutProps> = ({
             </NavLink>
           </div>
 
-          <Link to="/app" className="site-nav-cta" aria-label="Open AapThozhi voice assistant">
-            🎙️ Open App
-          </Link>
+          <div className="site-nav-actions">
+            <Link to="/app" className="site-nav-cta" aria-label="Open AapThozhi voice assistant">
+              🎙️ Open App
+            </Link>
+
+            {/* Mobile hamburger menu toggle */}
+            <button
+              type="button"
+              className="site-mobile-menu-btn"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={mobileMenuOpen}
+            >
+              {mobileMenuOpen ? '✕' : '☰'}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile slide-down menu */}
+        {mobileMenuOpen && (
+          <div className="site-mobile-drawer" role="menu">
+            <NavLink
+              to="/how-it-works"
+              className={({ isActive }) => `site-mobile-link${isActive ? ' active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              📖 How It Works
+            </NavLink>
+            <NavLink
+              to="/languages"
+              className={({ isActive }) => `site-mobile-link${isActive ? ' active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              🗣️ 13 Supported Languages
+            </NavLink>
+            <NavLink
+              to="/schemes"
+              className={({ isActive }) => `site-mobile-link${isActive ? ' active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              📜 Scheme Guidance
+            </NavLink>
+            <NavLink
+              to="/offline-help"
+              className={({ isActive }) => `site-mobile-link${isActive ? ' active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              🏛️ Offline Help Plan
+            </NavLink>
+            <NavLink
+              to="/privacy-safety"
+              className={({ isActive }) => `site-mobile-link${isActive ? ' active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              🛡️ Privacy & Safety
+            </NavLink>
+            <NavLink
+              to="/faqs"
+              className={({ isActive }) => `site-mobile-link${isActive ? ' active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              ❓ FAQs
+            </NavLink>
+            <NavLink
+              to="/contact"
+              className={({ isActive }) => `site-mobile-link${isActive ? ' active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              ✉️ Contact Us
+            </NavLink>
+            <Link
+              to="/app"
+              className="site-mobile-app-btn"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              🎙️ Open Voice Assistant App
+            </Link>
+          </div>
+        )}
       </nav>
 
       {/* ── Main content ── */}

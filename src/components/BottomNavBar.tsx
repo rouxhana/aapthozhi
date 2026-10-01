@@ -75,7 +75,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   return (
     <nav
       aria-label="Main Navigation Tools"
-      className="fixed bottom-0 left-0 right-0 z-50 bg-[#0B1028]/95 backdrop-blur-2xl border-t-2 border-[#9B5DE5]/40 px-2 sm:px-4 py-1.5 shadow-[0_-10px_35px_rgba(0,0,0,0.7)]"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-[#0B1028]/95 backdrop-blur-2xl border-t-2 border-[#9B5DE5]/40 px-2 sm:px-4 pt-1.5 shadow-[0_-10px_35px_rgba(0,0,0,0.7)]"
+      style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0.5rem))' }}
     >
       <div className="max-w-xl mx-auto flex items-center justify-around gap-1">
         {navItems.map((item) => {
@@ -90,7 +91,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
                 onClick={onQuickSpeak}
                 aria-label={item.aria}
                 title={item.aria}
-                className="relative -top-4 flex flex-col items-center justify-center focus:outline-none group cursor-pointer"
+                className="relative -top-4 flex flex-col items-center justify-center focus:outline-none group cursor-pointer min-w-[56px] min-h-[56px]"
               >
                 <div className="w-15 h-15 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-[#9B5DE5] via-[#8338EC] to-[#F3A6C8] text-white flex items-center justify-center shadow-2xl shadow-[#9B5DE5]/70 ring-4 ring-[#0B1028] group-hover:scale-110 active:scale-95 transition-all">
                   <Mic size={30} className="stroke-[2.5] animate-pulse" />
@@ -109,7 +110,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
               onClick={() => onNavigate(item.id)}
               aria-label={item.aria}
               title={item.aria}
-              className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all cursor-pointer ${
+              className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl min-h-[48px] transition-all cursor-pointer ${
                 isActive
                   ? `${item.activeBg} text-white font-extrabold shadow-lg border`
                   : 'text-[#B7BDD3] hover:text-white hover:bg-[#141B3B]/60'

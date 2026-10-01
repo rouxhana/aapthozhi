@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  ArrowRight,
   Bot,
   ChevronRight,
-  Edit3,
-  HelpCircle,
+  Loader2,
   Mic,
+  MicOff,
   RotateCcw,
+  Send,
   Sparkles,
+  StopCircle,
   User,
   Volume2,
 } from 'lucide-react';
@@ -18,15 +19,19 @@ import { SpeakerButton } from '../components/SpeakerButton';
 import { ExplainSlowlyModal } from '../components/ExplainSlowlyModal';
 import { speechService, playAapThozhiVoice } from '../services/speechService';
 import { aapThozhiAIService } from '../services/aapThozhiAIService';
+import { geminiService } from '../services/geminiService';
 import { voiceDetectionService } from '../services/voiceDetectionService';
 
 export { playAapThozhiVoice };
 
+// ─────────────────────────────────────────────────────────────────
+// Default "starter" questions for each language (shown as user query)
+// ─────────────────────────────────────────────────────────────────
 const DEFAULT_QUERIES: Record<LanguageCode, string> = {
   ta: 'என் மகளின் கல்வி உதவிக்கு திட்டம் வேண்டும்.',
   hi: 'मुझे अपनी बेटी की पढ़ाई के लिए छात्रवृत्ति सहायता चाहिए।',
   te: 'నా కుమార్తె చదువు కోసం విద్యా సహాయం కావాలి.',
-  bn: 'আমার মেয়ের পড়াশোনার জন্য শিক্ষা অনুদান সাহায্য দরকার।',
+  bn: 'আমার মেয়ের পড়াশোনার জন্য শিক্ষা অনুদান সহাযতা দরকার।',
   mr: 'माझ्या मुलीच्या शिक्षणासाठी शिष्यवृत्तीची मदत हवी आहे.',
   kn: 'ನನ್ನ ಮಗಳ ವಿದ್ಯಾಭ್ಯಾಸಕ್ಕಾಗಿ ಶೈಕ್ಷಣಿಕ ನೆರವು ಬೇಕು.',
   gu: 'મારી દીકરીના અભ્યાસ માટે સરકારી સહાય જોઈએ છે.',
@@ -36,16 +41,53 @@ const DEFAULT_QUERIES: Record<LanguageCode, string> = {
   as: 'মোৰ ছোৱালীৰ পঢ়া-শুনাৰ বাবে শিক্ষা সাহায্য লাগে।',
   ur: 'مجھے اپنی بیٹی کی تعلیم کے لیے وظیفے کی مدد چاہیے۔',
   hinglish: 'Mujhe apni beti ki padhai ke liye scholarship help chahiye.',
-  en: 'I need help for my daughter’s education.',
+  en: 'I need help for my daughter\'s education.',
+};
+
+// "Thinking" messages per language
+const THINKING_MESSAGES: Record<LanguageCode, string> = {
+  ta: '🤔 யோசிக்கிறேன்…',
+  hi: '🤔 सोच रही हूँ…',
+  te: '🤔 ఆలోచిస్తున్నాను…',
+  bn: '🤔 ভাবছি…',
+  mr: '🤔 विचार करते आहे…',
+  kn: '🤔 ಯೋಚಿಸುತ್ತಿದ್ದೇನೆ…',
+  gu: '🤔 વિચારી રही છું…',
+  ml: '🤔 ആലോചിക്കുന്നു…',
+  pa: '🤔 ਸੋਚ ਰਹੀ ਹਾਂ…',
+  od: '🤔 ଭାବୁଛି…',
+  as: '🤔 ভাবিছোঁ…',
+  ur: '🤔 سوچ رہی ہوں…',
+  hinglish: '🤔 Soch rahi hoon…',
+  en: '🤔 Thinking…',
+};
+
+// "Listening" indicator per language
+const LISTENING_LABELS: Record<LanguageCode, string> = {
+  ta: '🎙️ கேட்கிறேன்…',
+  hi: '🎙️ सुन रही हूँ…',
+  te: '🎙️ వింటున్నాను…',
+  bn: '🎙️ শুনছি…',
+  mr: '🎙️ ऐकतेय…',
+  kn: '🎙️ ಕೇಳುತ್ತಿದ್ದೇನೆ…',
+  gu: '🎙️ સાંભળી રહ્યા…',
+  ml: '🎙️ കേൾക്കുന്നു…',
+  pa: '🎙️ ਸੁਣ ਰਹੀ ਹਾਂ…',
+  od: '🎙️ ଶୁଣୁଛି…',
+  as: '🎙️ শুনিছোঁ…',
+  ur: '🎙️ سن رہی ہوں…',
+  hinglish: '🎙️ Sun rahi hoon…',
+  en: '🎙️ Listening…',
 };
 
 interface ChatMessage {
   id: string;
-  sender: 'user' | 'assistant';
+  sender: 'user' | 'assistant' | 'thinking';
   text: string;
   audioText: string;
   schemeIdTarget?: string;
   showSchemeAction?: boolean;
+  source?: 'gemini-api' | 'local-dataset' | 'offline';
 }
 
 interface ChatConversationViewProps {
@@ -62,18 +104,38 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
   onBack,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isListeningNext, setIsListeningNext] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSlowModalOpen, setIsSlowModalOpen] = useState(false);
-  const [isEditingInput, setIsEditingInput] = useState(false);
-  const [customInputText, setCustomInputText] = useState('');
+  const [textInput, setTextInput] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
   const currentScheme = getLocalizedScheme(SCHEMES_DATA[0], currentLanguage);
 
+  // Subscribe to speech service state
   useEffect(() => {
-    // Select localized initial user query and generate AapThozhi AI assistant response
+    const unsub = speechService.subscribe((state) => {
+      setIsSpeaking(state.isSpeaking);
+    });
+    return unsub;
+  }, []);
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isThinking]);
+
+  // ── Initial load: send the opening query through Gemini async ──────────────
+  useEffect(() => {
     const resolvedUserQuery = initialQuery || DEFAULT_QUERIES[currentLanguage] || DEFAULT_QUERIES.en;
-    const aiResponse = aapThozhiAIService.generateResponse(resolvedUserQuery, currentLanguage);
+
+    // Reset conversation history when starting fresh
+    geminiService.clearHistory();
 
     const userMsg: ChatMessage = {
       id: 'msg-1',
@@ -81,239 +143,197 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
       text: resolvedUserQuery,
       audioText: resolvedUserQuery,
     };
+    setMessages([userMsg]);
+    setIsThinking(true);
 
-    const assistantMsg: ChatMessage = {
-      id: 'msg-2',
-      sender: 'assistant',
-      text: aiResponse.responseText,
-      audioText: aiResponse.audioText,
-      schemeIdTarget: aiResponse.matchedScheme ? String(aiResponse.matchedScheme.id) : 'scheme-education-girl',
-      showSchemeAction: !!aiResponse.matchedScheme,
-    };
+    // Use full async Gemini path from the very first message
+    aapThozhiAIService.generateResponseAsync(resolvedUserQuery, currentLanguage).then((aiResponse) => {
+      setIsThinking(false);
+      const assistantMsg: ChatMessage = {
+        id: 'msg-2',
+        sender: 'assistant',
+        text: aiResponse.responseText,
+        audioText: aiResponse.audioText,
+        schemeIdTarget: aiResponse.matchedScheme ? String(aiResponse.matchedScheme.id) : undefined,
+        showSchemeAction: !!aiResponse.matchedScheme,
+        source: aiResponse.actionCategory === 'scheme' ? 'gemini-api' : 'local-dataset',
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
 
-    setMessages([userMsg, assistantMsg]);
-
-    // Speak initial assistant reply in native language
-    const timer = setTimeout(() => {
-      speechService.speak(assistantMsg.audioText, aiResponse.detectedLanguage, 1.0);
-    }, 500);
+      setTimeout(() => {
+        speechService.speak(assistantMsg.audioText, aiResponse.detectedLanguage, 1.0);
+      }, 400);
+    });
 
     return () => {
-      clearTimeout(timer);
       speechService.stop();
     };
   }, [initialQuery, currentLanguage]);
 
-  const handleSayAgain = () => {
-    const lastAssistant = [...messages].reverse().find((m) => m.sender === 'assistant');
-    if (lastAssistant) {
-      speechService.speak(lastAssistant.audioText, currentLanguage, 1.0);
-    }
-  };
+  // ── Send any message (typed or voice) through AI ──────────────────────────
+  const sendMessage = async (query: string) => {
+    if (!query.trim() || isThinking) return;
 
-  const handleChangeWhatISaid = () => {
-    setIsEditingInput(true);
-    setCustomInputText(initialQuery || DEFAULT_QUERIES[currentLanguage] || '');
-  };
-
-  const handleSaveCorrection = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customInputText.trim()) return;
-
-    const updatedUserMsg: ChatMessage = {
-      id: `msg-corr-${Date.now()}`,
+    const userMsg: ChatMessage = {
+      id: `msg-u-${Date.now()}`,
       sender: 'user',
-      text: customInputText,
-      audioText: customInputText,
+      text: query,
+      audioText: query,
     };
+    setMessages((prev) => [...prev, userMsg]);
+    setIsThinking(true);
+    speechService.stop();
 
-    const aiRes = await aapThozhiAIService.generateResponseAsync(customInputText, currentLanguage);
+    const aiRes = await aapThozhiAIService.generateResponseAsync(query, currentLanguage);
+    setIsThinking(false);
 
-    const replyMsg: ChatMessage = {
-      id: `msg-reply-${Date.now()}`,
+    const assistantMsg: ChatMessage = {
+      id: `msg-a-${Date.now()}`,
       sender: 'assistant',
       text: aiRes.responseText,
       audioText: aiRes.audioText,
       schemeIdTarget: aiRes.matchedScheme ? String(aiRes.matchedScheme.id) : undefined,
       showSchemeAction: !!aiRes.matchedScheme,
+      source: geminiService.isAvailable() ? 'gemini-api' : 'offline',
     };
-
-    setMessages((prev) => [...prev, updatedUserMsg, replyMsg]);
-    setIsEditingInput(false);
-    speechService.speak(replyMsg.audioText, aiRes.detectedLanguage);
+    setMessages((prev) => [...prev, assistantMsg]);
+    speechService.speak(assistantMsg.audioText, aiRes.detectedLanguage);
   };
 
-  const handleNextVoiceAnswer = () => {
-    setIsListeningNext(true);
-    speechService.speak(t.listening, currentLanguage);
+  // ── Handle typed text submission ──────────────────────────────────────────
+  const handleTextSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (textInput.trim()) {
+      sendMessage(textInput.trim());
+      setTextInput('');
+    }
+  };
 
-    let caught = false;
+  // ── Handle microphone button ──────────────────────────────────────────────
+  const handleMicClick = () => {
+    if (isListening) {
+      voiceDetectionService.stopListening?.();
+      setIsListening(false);
+      setInterimTranscript('');
+      return;
+    }
+
+    setIsListening(true);
+    setInterimTranscript('');
+    speechService.stop();
+
     voiceDetectionService.startListening(
-      (_interim: string) => {
-        // interim
+      (interim: string) => {
+        setInterimTranscript(interim);
       },
       async (res: any) => {
-        caught = true;
-        setIsListeningNext(false);
-        const transcript = res.transcript;
-        const aiRes = await aapThozhiAIService.generateResponseAsync(transcript, currentLanguage);
-
-        const userReply: ChatMessage = {
-          id: `msg-voice-${Date.now()}`,
-          sender: 'user',
-          text: transcript,
-          audioText: transcript,
-        };
-        const assistantReply: ChatMessage = {
-          id: `msg-assistant-${Date.now()}`,
-          sender: 'assistant',
-          text: aiRes.responseText,
-          audioText: aiRes.audioText,
-          schemeIdTarget: aiRes.matchedScheme ? String(aiRes.matchedScheme.id) : undefined,
-          showSchemeAction: !!aiRes.matchedScheme,
-        };
-
-        setMessages((prev) => [...prev, userReply, assistantReply]);
-        speechService.speak(assistantReply.audioText, aiRes.detectedLanguage);
+        setIsListening(false);
+        setInterimTranscript('');
+        const transcript = res.transcript || res;
+        if (transcript.trim()) {
+          await sendMessage(transcript.trim());
+        }
       },
       () => {
-        if (!caught) {
-          setTimeout(() => {
-            setIsListeningNext(false);
-            const fallbackMap: Record<LanguageCode, { q: string; a: string }> = {
-              ta: {
-                q: 'விண்ணப்பிக்க அருகிலுள்ள மையம் எங்கே உள்ளது?',
-                a: 'அக்கா, உங்கள் கிராம நிர்வாக அலுவலகம் அல்லது அருகில் உள்ள அங்கன்வாடி மையத்திற்கு நேரில் செல்லுங்கள். அங்கு ஆஷா தமக்கை உங்களுக்கு படிவத்தை இலவசமாக பூர்த்தி செய்து தருவார்.',
-              },
-              te: {
-                q: 'దరఖాస్తు చేసుకోవడానికి సమీప కేంద్రం ఎక్కడ ఉంది?',
-                a: 'అక్కా, మీ పంచాయతీ కార్యాలయం లేదా సమీప అంగన్‌వాడీ కేంద్రానికి వెళ్ళండి. అక్కడ ఆశా కార్యకర్త మీకు ఉచితంగా దరఖాస్తు చేయడంలో సహాయం చేస్తారు.',
-              },
-              kn: {
-                q: 'ಅರ್ಜಿ ಸಲ್ಲಿಸಲು ಹತ್ತಿರದ ಕೇಂದ್ರ ಎಲ್ಲಿದೆ?',
-                a: 'ಅಕ್ಕಾ, ನಿಮ್ಮ ಗ್ರಾಮ ಪಂಚಾಯತಿ ಅಥವಾ ಸಮೀಪದ ಅಂಗನವಾಡಿ ಕೇಂದ್ರಕ್ಕೆ ಭೇಟಿ ನೀಡಿ. ಅಲ್ಲಿ ಆಶಾ ಕಾರ್ಯಕರ್ತೆ ನಿಮಗೆ ಸಂಪೂರ್ಣ ಉಚಿತ ಮಾರ್ಗದರ್ಶನ ನೀಡುತ್ತಾರೆ.',
-              },
-              mr: {
-                q: 'अर्ज भरण्यासाठी जवळचे केंद्र कुठे आहे?',
-                a: 'ताई, तुमच्या गावातील ग्रामपंचायत कार्यालय किंवा जवळच्या अंगणवाडी केंद्रात जा. तिथे आशा ताई तुम्हाला मोफत अर्ज भरून देतील.',
-              },
-              hi: {
-                q: 'आवेदन करने के लिए नज़दीकी केंद्र कहाँ है?',
-                a: 'दीदी, आप अपने गाँव के पंचायत भवन या नज़दीकी आँगनवाड़ी केंद्र पर जा सकती हैं। वहाँ आशा दीदी आपको फॉर्म भरने में पूरी मदद करेंगी।',
-              },
-              bn: {
-                q: 'আবেদন করার জন্য কাছের কেন্দ্র কোথায়?',
-                a: 'দিদি, আপনার এলাকার পঞ্চায়েত অফিস বা অঙ্গনওয়াড়ি কেন্দ্রে যান। সেখানে আশা দিদি আপনাকে বিনামূল্যে সাহায্য করবেন।',
-              },
-              gu: {
-                q: 'અરજી કરવા માટે નજીકનું કેન્દ્ર ક્યાં છે?',
-                a: 'બહેન, તમારા ગામની ગ્રામ પંચાયત અથવા આંગણવાડી કેન્દ્રની મુલાકાત લો. ત્યાં આશા બહેન તમને મદદ કરશે.',
-              },
-              ml: {
-                q: 'അപേക്ഷിക്കാൻ അടുത്തുള്ള കേന്ദ്രം എവിടെയാണ്?',
-                a: 'ചേച്ചീ, നിങ്ങളുടെ പഞ്ചായത്ത് ഓഫീസിലോ അങ്കണവാടിയിലോ നേരിട്ട് പോകാം. അവിടെയുള്ള ആശാ പ്രവർത്തക സഹായിക്കും.',
-              },
-              pa: {
-                q: 'ਅਰਜ਼ੀ ਦੇਣ ਲਈ ਨੇੜਲਾ ਕੇਂਦਰ ਕਿੱਥੇ ਹੈ?',
-                a: 'ਭੈਣ ਜੀ, ਆਪਣੇ ਪਿੰਡ ਦੇ ਪੰਚਾਇਤ ਘਰ ਜਾਂ ਆਂਗਣਵਾੜੀ ਸੈਂਟਰ ਜਾਓ। ਉੱਥੇ ਆਸ਼ਾ ਵਰਕਰ ਤੁਹਾਡੀ ਪੂਰੀ ਮਦਦ ਕਰੇਗੀ।',
-              },
-              od: {
-                q: 'ଆବେଦନ ପାଇଁ ନିକଟସ୍ଥ କେନ୍ଦ୍ର କେଉଁଠି?',
-                a: 'ଭଉଣୀ, ପାଖ ପଞ୍ଚାୟତ ଅଫିସ ବା ଅଙ୍ଗନୱାଡି କେନ୍ଦ୍ରକୁ ଯାଆନ୍ତୁ। ସେଠାରେ ଆଶା ଦିଦି ସାହାଯ୍ୟ କରିବେ।',
-              },
-              as: {
-                q: 'আবেদন কৰিবলৈ ওচৰৰ কেন্দ্ৰ ক’ত আছে?',
-                a: 'বাইদেউ, ওচৰৰ পঞ্চায়ত কাৰ্যালয় বা অংগনৱাড়ী কেন্দ্ৰলৈ যাওক। তাত আশা বাইদেউৱে সহায় কৰিব।',
-              },
-              ur: {
-                q: 'درخواست دینے کے لیے قریبی مرکز کہاں ہے؟',
-                a: 'بہن، آپ اپنے قریبی پنچایت دفتر یا آنگن واڑی تشریف لے جائیں، وہاں آشا آپ کی پوری مدد کریں گی۔',
-              },
-              hinglish: {
-                q: 'Apply karne ke liye paas ka centre kahan hai?',
-                a: 'Didi, aap apne gaon ke Panchayat Bhavan ya Anganwadi Centre ja sakti hain. Wahan ASHA didi form bharne mein poori help karengi.',
-              },
-              en: {
-                q: 'Where is the nearest centre to apply?',
-                a: 'Sister, please visit your local Panchayat Office or Anganwadi Centre. The ASHA sister there will guide and help you submit your form for free.',
-              },
-            };
+        // No speech detected — show gentle prompt
+        setIsListening(false);
+        setInterimTranscript('');
+        const noSpeech = {
+          ta: 'மன்னிக்கவும், உங்கள் குரல் கேட்கவில்லை. மீண்டும் பேசுங்கள்.',
+          hi: 'माफ़ करें, आवाज़ नहीं सुनाई दी। दोबारा बोलें।',
+          te: 'క్షమించండి, మీ మాటలు వినలేదు. మళ్ళీ మాట్లాడండి.',
+          kn: 'ಕ್ಷಮಿಸಿ, ನಿಮ್ಮ ಧ್ವನಿ ಕೇಳಿಸಲಿಲ್ಲ. ಮತ್ತೊಮ್ಮೆ ಮಾತನಾಡಿ.',
+          mr: 'माफ करा, तुमचा आवाज ऐकू आला नाही. पुन्हा बोला.',
+          bn: 'দুঃখিত, আপনার কণ্ঠস্বর শোনা যায়নি। আবার বলুন।',
+          gu: 'માફ કરો, અવાજ ન સંભળાયો. ફરી બોલો.',
+          ml: 'ക്ഷമിക്കണം, ശബ്ദം കേട്ടില്ല. വീണ്ടും സംസാരിക്കൂ.',
+          pa: 'ਮਾਫ਼ ਕਰਨਾ, ਆਵਾਜ਼ ਸੁਣਾਈ ਨਹੀਂ ਦਿੱਤੀ। ਦੁਬਾਰਾ ਬੋਲੋ।',
+          od: 'ଦୁଃଖ ଅଛି, ଆପଣଙ୍କ ସ୍ୱର ଶୁଣି ହେଲା ନାହିଁ। ପୁଣି ଥରେ କୁହନ୍ତୁ।',
+          as: "মাফ কৰিব, আপোনাৰ কথা শুনা নগ'ল। পুনৰাই কওক।",
+          ur: 'معاف کریں، آواز نہیں آئی۔ دوبارہ بولیں۔',
+          hinglish: 'Maaf karo, awaaz nahin aayi. Dobara bolein.',
+          en: 'Sorry, I could not hear you. Please speak again.',
+        } as Record<LanguageCode, string>;
 
-            const fb = fallbackMap[currentLanguage] || fallbackMap.en;
-            const userReply: ChatMessage = {
-              id: `msg-voice-${Date.now()}`,
-              sender: 'user',
-              text: fb.q,
-              audioText: fb.q,
-            };
-            const assistantReply: ChatMessage = {
-              id: `msg-assistant-loc-${Date.now()}`,
-              sender: 'assistant',
-              text: fb.a,
-              audioText: fb.a,
-              schemeIdTarget: 'scheme-education-girl',
-              showSchemeAction: true,
-            };
-
-            setMessages((prev) => [...prev, userReply, assistantReply]);
-            speechService.speak(assistantReply.audioText, currentLanguage);
-          }, 1500);
-        }
+        const hint = noSpeech[currentLanguage] || noSpeech.en;
+        setMessages((prev) => [
+          ...prev,
+          { id: `msg-nsp-${Date.now()}`, sender: 'assistant', text: hint, audioText: hint, source: 'offline' },
+        ]);
       },
       currentLanguage
     );
   };
 
+  // ── Replay last response ──────────────────────────────────────────────────
+  const handleSayAgain = () => {
+    const lastAssistant = [...messages].reverse().find((m) => m.sender === 'assistant');
+    if (lastAssistant) {
+      speechService.speak(lastAssistant.audioText, currentLanguage, 0.85);
+    }
+  };
+
+  const handleStopSpeaking = () => speechService.stop();
+
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      {/* Top Header Navigation */}
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex flex-col gap-4">
+
+      {/* ── Top bar ── */}
       <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={onBack}
-          className="px-3 py-1.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-xs text-[#C9A7FF] font-medium"
+          className="px-3 py-1.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-xs text-[#C9A7FF] font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
         >
-          ← Back to Services
+          ← Back
         </button>
 
         <div className="flex items-center gap-2">
-          {/* Explain Slowly Tortoise Button */}
+          {/* AI source badge */}
+          <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 border ${
+            geminiService.isAvailable()
+              ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-300'
+              : 'bg-[#141B3B] border-[#9B5DE5]/30 text-[#B7BDD3]'
+          }`}>
+            <Sparkles size={10} />
+            {geminiService.isAvailable() ? 'Gemini AI' : 'Offline Mode'}
+          </div>
+
+          {/* Explain slowly */}
           <button
             type="button"
             onClick={() => setIsSlowModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-[#9B5DE5]/20 border-2 border-emerald-400 text-emerald-300 hover:bg-emerald-500/30 text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
-            title="Explain in bite-sized simple steps with slower audio"
+            className="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 hover:bg-emerald-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+            title="Explain step by step, slowly"
+            aria-label="Explain slowly in simple steps"
           >
-            <span className="text-base" role="img" aria-label="Tortoise">
-              🐢
-            </span>
+            <span role="img" aria-label="Tortoise">🐢</span>
             <span>{t.explainSlowlyBtn}</span>
           </button>
         </div>
       </div>
 
-      {/* Chat Messages Stream */}
-      <div className="space-y-4">
+      {/* ── Message stream ── */}
+      <div className="space-y-4 min-h-[200px]">
         {messages.map((msg) => {
           const isUser = msg.sender === 'user';
-
           return (
             <div
               key={msg.id}
-              className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''} animate-in fade-in duration-200`}
+              className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''} animate-in fade-in duration-300`}
             >
               {/* Avatar */}
               <div
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-lg text-white ${
                   isUser
-                    ? 'bg-[#F3A6C8] text-[#0B1026] font-bold'
-                    : 'bg-gradient-to-br from-[#9B5DE5] to-[#F3A6C8] text-white p-0.5'
+                    ? 'bg-[#F3A6C8] text-[#0B1026]'
+                    : 'bg-gradient-to-br from-[#9B5DE5] to-[#F3A6C8]'
                 }`}
               >
                 {isUser ? <User size={20} /> : <Bot size={22} />}
               </div>
 
-              {/* Chat Bubble */}
+              {/* Bubble */}
               <div
                 className={`max-w-xl p-4 sm:p-5 rounded-3xl border ${
                   isUser
@@ -321,32 +341,34 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
                     : 'bg-[#141B3B] border-[#9B5DE5]/30 text-[#F7F5FA] rounded-tl-none shadow-xl'
                 }`}
               >
-                <div className="flex items-center justify-between gap-3 mb-1.5">
+                <div className="flex items-center justify-between gap-3 mb-2">
                   <span className="text-xs font-bold text-[#C9A7FF]">
-                    {isUser ? 'You spoke' : 'AapThozhi'}
+                    {isUser ? '🗣️ You' : '🤖 AapThozhi'}
+                    {msg.source === 'gemini-api' && (
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[9px] border border-emerald-400/30">AI</span>
+                    )}
                   </span>
-                  <SpeakerButton
-                    textToSpeak={msg.audioText}
-                    langCode={currentLanguage}
-                    size="sm"
-                  />
+                  {!isUser && (
+                    <SpeakerButton textToSpeak={msg.audioText} langCode={currentLanguage} size="sm" />
+                  )}
                 </div>
 
-                <p className="text-sm sm:text-base leading-relaxed select-text m-0">
+                <p className="text-sm sm:text-[0.9375rem] leading-relaxed select-text m-0 whitespace-pre-wrap">
                   {msg.text}
                 </p>
 
-                {/* Scheme Action Card Button inside chat */}
+                {/* Scheme action CTA */}
                 {msg.showSchemeAction && msg.schemeIdTarget && (
                   <div className="mt-4 pt-3 border-t border-[#9B5DE5]/20">
                     <button
                       type="button"
                       onClick={() => onOpenScheme(msg.schemeIdTarget!)}
-                      className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#9B5DE5] to-[#F3A6C8] text-[#0B1026] font-extrabold text-xs sm:text-sm flex items-center justify-between shadow-lg shadow-[#9B5DE5]/20 hover:opacity-95 transition-all cursor-pointer"
+                      className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#9B5DE5] to-[#F3A6C8] text-[#0B1026] font-extrabold text-xs sm:text-sm flex items-center justify-between shadow-lg hover:opacity-95 transition-all cursor-pointer"
+                      aria-label="View scheme details and checklist"
                     >
                       <div className="flex items-center gap-2">
                         <Sparkles size={16} />
-                        <span>View {currentScheme.title} Checklist</span>
+                        <span>📋 View Full Scheme Guide</span>
                       </div>
                       <ChevronRight size={18} strokeWidth={3} />
                     </button>
@@ -356,99 +378,134 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
             </div>
           );
         })}
+
+        {/* Thinking indicator */}
+        {isThinking && (
+          <div className="flex items-start gap-3 animate-in fade-in duration-200">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#9B5DE5] to-[#F3A6C8] flex items-center justify-center shrink-0 shadow-lg">
+              <Bot size={22} className="text-white" />
+            </div>
+            <div className="px-5 py-4 rounded-3xl rounded-tl-none bg-[#141B3B] border border-[#9B5DE5]/30 flex items-center gap-3">
+              <Loader2 size={18} className="text-[#F3A6C8] animate-spin" />
+              <span className="text-sm text-[#B7BDD3]">
+                {THINKING_MESSAGES[currentLanguage] || THINKING_MESSAGES.en}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Confusion Recovery Toolbar: "Change what I said", "Say that again", "Explain slowly" */}
-      <div className="p-3.5 rounded-2xl bg-[#101533] border border-[#9B5DE5]/30 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-2">
-          {/* Say That Again */}
+      {/* ── Quick action bar: Say Again / Stop ── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={handleSayAgain}
+          disabled={isThinking}
+          className="px-3 py-2 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-[#C9A7FF] text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
+          aria-label="Repeat last answer"
+          title="Hear the last answer again"
+        >
+          <RotateCcw size={14} />
+          <span>🔁 Say again</span>
+        </button>
+
+        {isSpeaking && (
           <button
             type="button"
-            onClick={handleSayAgain}
-            className="px-3 py-1.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-[#C9A7FF] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+            onClick={handleStopSpeaking}
+            className="px-3 py-2 rounded-xl bg-[#EF6A7B]/20 hover:bg-[#EF6A7B]/30 border border-[#EF6A7B]/40 text-[#EF6A7B] text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+            aria-label="Stop speaking"
           >
-            <RotateCcw size={14} />
-            <span>Say that again</span>
+            <StopCircle size={14} />
+            <span>Stop</span>
           </button>
+        )}
 
-          {/* Change What I Said */}
-          <button
-            type="button"
-            onClick={handleChangeWhatISaid}
-            className="px-3 py-1.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-[#F3A6C8] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <Edit3 size={14} />
-            <span>Change what I said</span>
-          </button>
-        </div>
-
-        {/* Explain Slowly Tortoise Button */}
         <button
           type="button"
           onClick={() => setIsSlowModalOpen(true)}
-          className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 hover:bg-emerald-500/30 font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+          className="px-3 py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+          aria-label="Explain slowly in steps"
         >
-          <span>🐢</span>
-          <span>Explain slowly</span>
+          🐢 Explain slowly
         </button>
       </div>
 
-      {/* Editing Modal / Input */}
-      {isEditingInput && (
-        <form
-          onSubmit={handleSaveCorrection}
-          className="p-4 rounded-3xl bg-[#141B3B] border-2 border-[#F3A6C8] space-y-3 animate-in fade-in"
-        >
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-white flex items-center gap-1.5">
-              <Edit3 size={14} className="text-[#F3A6C8]" />
-              Correct your voice statement:
-            </label>
-            <button
-              type="button"
-              onClick={() => setIsEditingInput(false)}
-              className="text-xs text-[#B7BDD3] hover:text-white"
-            >
-              Cancel
-            </button>
+      {/* ── Listening interim transcript ── */}
+      {isListening && (
+        <div className="px-4 py-3 rounded-2xl bg-[#EF6A7B]/10 border-2 border-[#EF6A7B]/40 flex items-center gap-3 animate-pulse">
+          <Mic size={20} className="text-[#EF6A7B] shrink-0" />
+          <div>
+            <p className="text-xs font-bold text-[#EF6A7B]">{LISTENING_LABELS[currentLanguage]}</p>
+            {interimTranscript && (
+              <p className="text-sm text-[#F7F5FA] mt-0.5">{interimTranscript}</p>
+            )}
           </div>
-          <input
-            type="text"
-            value={customInputText}
-            onChange={(e) => setCustomInputText(e.target.value)}
-            placeholder="Type your corrected request..."
-            className="w-full p-3 rounded-2xl bg-[#0B1026] border border-[#9B5DE5]/40 text-white text-sm focus:outline-none focus:border-[#F3A6C8]"
-          />
-          <button
-            type="submit"
-            className="py-2.5 px-4 rounded-xl bg-[#F3A6C8] text-[#0B1026] font-bold text-xs"
-          >
-            Update & Get Fresh Guidance
-          </button>
-        </form>
+        </div>
       )}
 
-      {/* Mic Input Bar for Continuing Voice Conversation */}
-      <div className="p-4 rounded-3xl bg-[#141B3B] border-2 border-[#9B5DE5]/40 flex items-center justify-between gap-3 shadow-xl">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-10 h-10 rounded-2xl bg-[#9B5DE5]/20 flex items-center justify-center text-[#F3A6C8] shrink-0">
-            <Mic size={22} className={isListeningNext ? 'animate-bounce' : ''} />
-          </div>
-          <p className="text-xs text-[#B7BDD3] truncate m-0">
-            {isListeningNext ? 'Listening... please speak' : 'Ask another question or tap Speak'}
-          </p>
-        </div>
-
+      {/* ── Main input bar: text + mic ── */}
+      <form
+        onSubmit={handleTextSubmit}
+        className="p-3 rounded-2xl bg-[#141B3B] border-2 border-[#9B5DE5]/40 flex items-center gap-2 shadow-xl"
+        aria-label="Ask a question by text or voice"
+      >
+        {/* Mic button */}
         <button
           type="button"
-          onClick={handleNextVoiceAnswer}
-          disabled={isListeningNext}
-          className="py-2.5 px-4 rounded-2xl bg-gradient-to-r from-[#9B5DE5] to-[#F3A6C8] text-[#0B1026] font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-md hover:opacity-95 transition-all cursor-pointer"
+          onClick={handleMicClick}
+          disabled={isThinking}
+          className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all cursor-pointer border-2 ${
+            isListening
+              ? 'bg-[#EF6A7B] border-[#EF6A7B] text-white ring-4 ring-[#EF6A7B]/30 animate-pulse'
+              : 'bg-[#9B5DE5]/20 border-[#9B5DE5]/50 text-[#F3A6C8] hover:bg-[#9B5DE5]/35'
+          }`}
+          aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+          title={isListening ? 'Tap to stop' : 'Tap and speak your question'}
         >
-          <Mic size={16} />
-          <span>{isListeningNext ? 'Listening...' : 'Speak Next Answer'}</span>
+          {isListening ? <MicOff size={22} className="stroke-[2.5]" /> : <Mic size={22} className="stroke-[2.5]" />}
         </button>
-      </div>
+
+        {/* Text input */}
+        <input
+          ref={textInputRef}
+          type="text"
+          value={textInput}
+          onChange={(e) => setTextInput(e.target.value)}
+          placeholder={
+            isListening
+              ? (LISTENING_LABELS[currentLanguage] || '🎙️ Listening…')
+              : (currentLanguage === 'ta' ? 'உங்கள் கேள்வி இங்கே தட்டச்சு செய்யுங்கள்...'
+                : currentLanguage === 'hi' ? 'यहाँ अपना सवाल टाइप करें...'
+                : currentLanguage === 'te' ? 'మీ ప్రశ్న ఇక్కడ టైప్ చేయండి...'
+                : currentLanguage === 'kn' ? 'ನಿಮ್ಮ ಪ್ರಶ್ನೆ ಇಲ್ಲಿ ಟೈಪ್ ಮಾಡಿ...'
+                : currentLanguage === 'mr' ? 'तुमचा प्रश्न येथे टाइप करा...'
+                : 'Type or speak your question…')
+          }
+          disabled={isThinking || isListening}
+          className="flex-1 bg-transparent text-white text-base sm:text-sm placeholder:text-[#7882A4] focus:outline-none px-2"
+          aria-label="Type your question"
+          autoComplete="off"
+        />
+
+        {/* Send button */}
+        <button
+          type="submit"
+          disabled={!textInput.trim() || isThinking}
+          className="w-12 h-12 rounded-xl bg-gradient-to-r from-[#9B5DE5] to-[#F3A6C8] text-white flex items-center justify-center shrink-0 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+          aria-label="Send message"
+          title="Send"
+        >
+          {isThinking ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+        </button>
+      </form>
+
+      {/* ── Disclaimer ── */}
+      <p className="text-center text-[10px] text-[#7882A4] leading-relaxed">
+        ⚠️ AapThozhi provides guidance only. Eligibility decisions are made by the relevant authority.
+      </p>
 
       {/* Explain Slowly Modal */}
       <ExplainSlowlyModal

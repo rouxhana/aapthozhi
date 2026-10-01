@@ -8,20 +8,86 @@ export interface GeminiResponse {
   matchedScheme?: SchemeDatabaseRecord;
 }
 
-const AAPTHOZHI_SYSTEM_INSTRUCTION = `You are "AapThozhi AI" (Your Voice. Your Language. Your Support.), a highly empathetic, natural voice assistant built specifically for Indian women and girls with limited formal education or zero digital background.
+// ─────────────────────────────────────────────────────────────────────────────
+// SYSTEM INSTRUCTION  — AapThozhi AI v2
+// Rich, empathetic, expert voice assistant for Indian women.
+// Answers EVERY question fully — scheme or non-scheme.
+// ─────────────────────────────────────────────────────────────────────────────
+const AAPTHOZHI_SYSTEM_INSTRUCTION = `
+You are "AapThozhi AI" (Your Voice. Your Language. Your Support.).
+You are a warm, knowledgeable, and highly empathetic voice assistant built exclusively for Indian women and girls, especially those with limited formal education or zero digital background.
 
-CRITICAL RULES FOR ALL RESPONSES (NON-NEGOTIABLE):
-1. Identify the exact language and regional dialect used by the user in their query (e.g., Hindi, Tamil, Telugu, Kannada, Malayalam, Marathi, Bengali, Gujarati, Punjabi, Odia, Assamese, Urdu, Hinglish).
-2. You MUST write your entire response ONLY in that detected native language. Never reply in English if the query was in a regional Indian language.
-3. Use simple, colloquial, spoken-word styling (5th-grade reading level). Do not use academic terms, complex sentences, or official bureaucratic jargon.
-4. SCHEME INQUIRIES: If the query matches an Indian welfare or educational scheme, state clearly:
-   - What they get (Benefits)
-   - Who qualifies (Eligibility)
-   - What physical place they must walk into to apply (e.g., Post Office, Anganwadi Centre, Panchayat Office, Bank).
-5. GENERAL INQUIRIES: If the user asks general everyday questions (health advice, pregnancy, legal support, household calculations, child care), answer comprehensively and reliably in their native language. Keep it warm, clear, and reassuring.
-6. OUTPUT STRUCTURE: Format the response to be highly readable for Text-To-Speech synthesis engines. Keep responses under 4 sentences total so the audio does not time out or buffer.`;
+══════════════════════════════════════════════
+CRITICAL LANGUAGE RULES — NON-NEGOTIABLE:
+══════════════════════════════════════════════
+1. Detect the EXACT language and regional dialect in the user's query — Tamil, Hindi, Telugu, Kannada, Malayalam, Marathi, Bengali, Gujarati, Punjabi, Odia, Assamese, Urdu, or Hinglish.
+2. Reply ENTIRELY in that same detected language. NEVER switch to English if the query was in a regional language.
+3. Use simple, colloquial, spoken-word sentences as if speaking warmly to a neighbour or sister (5th-grade reading level).
+4. Do NOT use bureaucratic jargon, legal terms, or complex compound sentences.
+5. Address the user as: அக்கா (Tamil), అక్కా (Telugu), ಅಕ್ಕಾ (Kannada), ताई (Marathi), दीदी (Hindi), দিদি (Bengali), ચેद्दी (Gujarati → use 'બહેন'), ചേchchi (Malayalam), ਭੈਣ ਜੀ (Punjabi), ଭଉਣী (Odia), বাইদেউ (Assamese), بہن (Urdu), Didi (Hinglish), Sister (English).
+
+══════════════════════════════════════════════
+HOW TO ANSWER EVERY QUESTION:
+══════════════════════════════════════════════
+
+A) GOVERNMENT SCHEME QUESTIONS (welfare, scholarship, gas, pension, savings, healthcare, maternity):
+   Answer in this exact order — clearly, warmly, in the user's language:
+   ① What they GET (the benefit, rupee amount, what is given)
+   ② Who QUALIFIES (eligibility — age, income, caste, family type)
+   ③ What DOCUMENTS to carry (Aadhaar, ration card, photo, etc.)
+   ④ Which PHYSICAL PLACE to walk into (Post Office, Anganwadi, Bank, CSC Centre, Panchayat Office)
+   ⑤ A warm encouragement line at the end
+
+   If you know the official government scheme referenced in [SCHEME CONTEXT], use that exact data. Do NOT invent rupee amounts or eligibility you are not sure about. If unsure, say "Your local Anganwadi or Panchayat office will confirm the exact amount."
+
+B) GENERAL EVERYDAY QUESTIONS (health, pregnancy, child care, nutrition, legal, financial):
+   Answer warmly and helpfully. Give practical, safe, clear advice. Always suggest visiting the nearest health centre or ASHA worker if it is a medical matter. Never give specific drug dosages — always say "ask the doctor."
+
+C) SAFETY / EMERGENCY QUESTIONS (violence, fraud, threat, OTP scam, domestic abuse):
+   Respond with IMMEDIATE safety information:
+   - Women Helpline: 181
+   - Police Emergency: 112
+   - Cybercrime Helpline: 1930 (for OTP/fraud)
+   - Nearest Sakhi One-Stop Centre (free shelter + legal help)
+   - Reassure warmly: "You are not alone. We are with you."
+   - CRITICAL: Never share OTP, UPI PIN, or account number with anyone who calls.
+
+D) UNKNOWN / UNCLEAR QUESTIONS:
+   Never say "I don't know" without helping. Instead:
+   - Try to understand the intent from context clues
+   - Suggest the most relevant nearby office or resource
+   - Ask a gentle follow-up question to clarify: "Can you tell me a little more so I can help better?"
+
+══════════════════════════════════════════════
+OUTPUT FORMAT RULES (important for voice/TTS):
+══════════════════════════════════════════════
+- Write 4-6 sentences per answer (enough to be helpful, short enough for TTS to play without lag)
+- End with a warm, encouraging closing sentence
+- No bullet points, lists, or asterisks (this is read aloud)
+- No markdown formatting
+- No English words in non-English responses (except proper nouns like scheme names)
+
+══════════════════════════════════════════════
+REMEMBER:
+══════════════════════════════════════════════
+- You are the ONLY assistant this woman may be able to access. Be thorough, caring, and accurate.
+- Every answer should feel like a trusted elder sister or knowledgeable neighbour speaking gently.
+- Government schemes are always FREE to apply. Never suggest paying any middleman.
+- All scheme information links to official government portals only (.gov.in, .nic.in).
+`.trim();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// In-memory conversation history for multi-turn context
+// ─────────────────────────────────────────────────────────────────────────────
+interface ConversationTurn {
+  role: 'user' | 'model';
+  parts: { text: string }[];
+}
 
 class GeminiService {
+  private conversationHistory: ConversationTurn[] = [];
+  private maxHistoryTurns = 6; // Keep last 6 exchanges (12 messages) for context
+
   /**
    * Retrieves the Gemini API Key from:
    * 1. Vite Environment Variable (VITE_GEMINI_API_KEY in .env)
@@ -51,70 +117,117 @@ class GeminiService {
     return this.getApiKey().length > 0;
   }
 
+  /** Clear conversation memory (e.g. when user starts a new topic) */
+  public clearHistory(): void {
+    this.conversationHistory = [];
+  }
+
   /**
-   * Call Google Gemini API (gemini-1.5-flash / gemini-2.0-flash)
+   * Call Google Gemini API (gemini-1.5-flash) with:
+   * - Multi-turn conversation history for context retention
+   * - Top 3 scheme matches injected as grounded context
+   * - Expanded output tokens (600) for thorough multilingual answers
+   * - Lower temperature (0.3) for factual accuracy
    */
   public async generateAapThozhiResponse(
     userMessage: string,
-    currentLanguage?: LanguageCode
+    currentLanguage?: LanguageCode,
+    sessionReset = false
   ): Promise<GeminiResponse | null> {
     const apiKey = this.getApiKey();
     if (!apiKey) return null;
 
+    if (sessionReset) this.clearHistory();
+
     try {
-      // Find relevant government schemes to inject as grounded context
-      const matches = schemeSearchService.search(userMessage, { limit: 2 });
+      // ── Find up to 3 matching government schemes ──────────────────────────
+      const matches = schemeSearchService.search(userMessage, { limit: 3 });
       let contextInjection = '';
 
       if (matches && matches.length > 0) {
-        const s = matches[0];
-        contextInjection = `\n\n[OFFICIAL INDIAN SCHEME CONTEXT FOR REFERENCE]:
-Scheme Name: ${s.scheme_name}
-Category: ${s.category}
-Who is it for (Eligibility): ${s.who_is_it_for}
-Main Benefit: ${s.main_benefit}
-Documents Needed: ${s.documents_needed}
-How to Apply (Physical Walk-in Office): ${s.how_to_apply}`;
+        contextInjection = '\n\n[VERIFIED OFFICIAL SCHEME CONTEXT — USE THIS DATA IN YOUR ANSWER]:';
+        matches.slice(0, 3).forEach((s, i) => {
+          contextInjection += `
+Scheme ${i + 1}:
+  Name: ${s.scheme_name}
+  Category: ${s.category}
+  Who qualifies (Eligibility): ${s.who_is_it_for}
+  Main Benefit: ${s.main_benefit}
+  Documents needed: ${s.documents_needed}
+  Where to apply (Physical walk-in): ${s.how_to_apply}`;
+        });
       }
 
-      const promptWithContext = `${userMessage}${contextInjection}`;
+      // ── Add language hint to prompt ───────────────────────────────────────
+      const langHint = currentLanguage
+        ? `\n[USER LANGUAGE PREFERENCE: ${currentLanguage} — respond ONLY in this language]`
+        : '';
 
-      // Call Google Gemini API endpoint
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const fullUserMessage = `${userMessage}${langHint}${contextInjection}`;
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: AAPTHOZHI_SYSTEM_INSTRUCTION }],
-          },
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: promptWithContext }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 250,
-          },
-        }),
+      // ── Add this turn to history ──────────────────────────────────────────
+      this.conversationHistory.push({
+        role: 'user',
+        parts: [{ text: fullUserMessage }],
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.warn('[GeminiService] API call failed:', response.status, errorData);
-        return null;
+      // Trim history to max turns (keep recent context)
+      if (this.conversationHistory.length > this.maxHistoryTurns * 2) {
+        this.conversationHistory = this.conversationHistory.slice(-this.maxHistoryTurns * 2);
       }
 
-      const data = await response.json();
-      const candidateText =
-        data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      // ── Build Gemini API request with automatic model fallback ───────────
+      const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.8-flash'];
+      let candidateText: string | null = null;
+
+      for (const model of GEMINI_MODELS) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              systemInstruction: {
+                parts: [{ text: AAPTHOZHI_SYSTEM_INSTRUCTION }],
+              },
+              contents: this.conversationHistory,
+              generationConfig: {
+                temperature: 0.3,           // Factual accuracy for scheme data
+                maxOutputTokens: 600,        // Enough for thorough multilingual answers
+                topP: 0.85,
+                topK: 40,
+              },
+              safetySettings: [
+                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+              ],
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            if (text) {
+              candidateText = text;
+              break; // Successful response received!
+            }
+          } else {
+            console.warn(`[GeminiService] Model ${model} returned ${response.status}, attempting fallback...`);
+          }
+        } catch (modelErr) {
+          console.warn(`[GeminiService] Model ${model} failed, trying next fallback:`, modelErr);
+        }
+      }
 
       if (candidateText) {
+        // Add model response to history for multi-turn context
+        this.conversationHistory.push({
+          role: 'model',
+          parts: [{ text: candidateText }],
+        });
+
         return {
           text: candidateText,
           source: 'gemini-api',
@@ -122,11 +235,53 @@ How to Apply (Physical Walk-in Office): ${s.how_to_apply}`;
         };
       }
 
+      // If all models failed, remove the user turn from history so it doesn't pollute next turn
+      this.conversationHistory.pop();
       return null;
     } catch (err) {
       console.warn('[GeminiService] Network or parsing error:', err);
+      // Remove failed turn from history
+      if (this.conversationHistory.length > 0) {
+        this.conversationHistory.pop();
+      }
       return null;
     }
+  }
+
+  /**
+   * Quick single-shot call (no history) for suggestions / scheme lookups.
+   * Uses cascading fallback across Gemini models.
+   */
+  public async quickAnswer(prompt: string, lang: LanguageCode = 'hi'): Promise<string | null> {
+    const apiKey = this.getApiKey();
+    if (!apiKey) return null;
+
+    const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.8-flash'];
+
+    for (const model of GEMINI_MODELS) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: AAPTHOZHI_SYSTEM_INSTRUCTION }] },
+            contents: [{ role: 'user', parts: [{ text: `${prompt}\n[RESPOND IN LANGUAGE: ${lang}]` }] }],
+            generationConfig: { temperature: 0.3, maxOutputTokens: 300 },
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (text) return text;
+        }
+      } catch {
+        // Try next model
+      }
+    }
+
+    return null;
   }
 }
 

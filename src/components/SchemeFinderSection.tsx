@@ -98,7 +98,7 @@ export const SchemeFinderSection: React.FC<SchemeFinderSectionProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Type your request: e.g. gas, sewing machine, college fees, pregnancy, pension..."
-            className="w-full pl-12 pr-28 py-3.5 sm:py-4 rounded-2xl bg-[#0D1333] border-2 border-[#9B5DE5]/40 hover:border-[#9B5DE5] focus:border-[#F3A6C8] focus:outline-none text-white placeholder-[#7882A4] text-sm sm:text-base font-medium transition-all shadow-lg"
+            className="w-full pl-12 pr-28 py-3.5 sm:py-4 rounded-2xl bg-[#0D1333] border-2 border-[#9B5DE5]/40 hover:border-[#9B5DE5] focus:border-[#F3A6C8] focus:outline-none text-white placeholder-[#7882A4] text-base font-medium transition-all shadow-lg"
           />
           {searchQuery && (
             <button
