@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="bubbleGrad" x1="10" y1="10" x2="110" y2="110" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#9B5DE5"/>
+      <stop offset="100%" stop-color="#F3A6C8"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="30" y1="20" x2="90" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#C9A7FF"/>
+    </linearGradient>
+    <filter id="glow" x="-10%" y="-10%" width="120%" height="120%" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Speech bubble with protective embrace curve -->
+  <path d="M60 12C33.49 12 12 32.15 12 57c0 14.52 7.37 27.42 18.83 35.53L26 108l19.46-8.34C50.15 101.32 55 102 60 102c26.51 0 48-20.15 48-45S86.51 12 60 12z" 
+        fill="url(#bubbleGrad)" filter="url(#glow)"/>
+
+  <!-- Protective aura inner ring -->
+  <path d="M60 18c-23.2 0-42 17.5-42 39 0 12.8 6.5 24.1 16.6 31.2l-3.6 11.8 15.3-6.5c4.3 1.6 8.9 2.5 13.7 2.5 23.2 0 42-17.5 42-39S83.2 18 60 18z" 
+        fill="#0D1333" opacity="0.35"/>
+
+  <!-- Left Woman (Mother/Helper) -->
+  <circle cx="48" cy="45" r="7.5" fill="#FFFFFF"/>
+  <path d="M38 72c0-8 6-14.5 13-14.5s12 5.5 12 13.5v3H38v-2z" fill="#FFFFFF"/>
+
+  <!-- Right Woman (Student/Young Woman) -->
+  <circle cx="72" cy="49" r="6.5" fill="#F3A6C8"/>
+  <path d="M61 74c0-7 5.5-12.5 12-12.5s11.5 5 11.5 12v2.5H61v-2z" fill="#F3A6C8"/>
+
+  <!-- Joined Hands / Bond of Trust -->
+  <path d="M54 65c3 3 9 3 12 0" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Sound wave / voice glow arches at top right -->
+  <path d="M84 34c4 4 6 9 6 15" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  <path d="M90 28c6 6 9 14 9 23" stroke="#C9A7FF" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+</svg>

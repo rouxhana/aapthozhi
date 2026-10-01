@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --color-midnight: #0B1026;
+  --color-deep-navy: #0D1333;
+  --color-lilac-pink: #F3A6C8;
+  --color-amethyst: #9B5DE5;
+  --color-soft-amethyst: #C9A7FF;
+  --color-offwhite-card: #F7F5FA;
+  --color-success-green: #45C27C;
+  --color-safety-coral: #EF6A7B;
+  --color-muted-text: #B7BDD3;
+  --color-card-dark: #131A3B;
+  --color-card-dark-hover: #1A234E;
+  --font-outfit: 'Outfit', 'Noto Sans', sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0B1026;
+  color: #FFFFFF;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0D1333;
+}
+::-webkit-scrollbar-thumb {
+  background: #9B5DE5;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C9A7FF;
+}
+
+/* Sound wave animations */
+@keyframes soundwave-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.9;
+  }
+}
+
+@keyframes wave-bar {
+  0%, 100% {
+    height: 12px;
+  }
+  50% {
+    height: 38px;
+  }
+}
+
+.animate-soundwave {
+  animation: soundwave-pulse 2s infinite ease-in-out;
+}
+
+.animate-wave-bar {
+  animation: wave-bar 1.2s infinite ease-in-out;
+}
