@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Disallow thank-you page (noindex)
+Disallow: /#/thank-you
+
+Sitemap: https://rouxhana.github.io/aapthozhi/sitemap.xml
