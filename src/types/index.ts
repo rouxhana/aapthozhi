@@ -36,7 +36,7 @@ export interface DocumentItem {
 
 export interface SchemeInfo {
   id: string;
-  category: 'education' | 'maternity' | 'pension' | 'health' | 'skills';
+  category: 'education' | 'maternity' | 'pension' | 'health' | 'skills' | 'agriculture' | 'business' | 'social';
   title: string;
   description: string;
   tagline: string;

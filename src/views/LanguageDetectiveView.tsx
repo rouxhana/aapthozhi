@@ -5,7 +5,6 @@ import {
   ChevronUp,
   Globe,
   Mic,
-  MicOff,
   Radio,
   RotateCcw,
   ShieldCheck,
@@ -33,12 +32,13 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
   const [transcribedText, setTranscribedText] = useState('');
   const [isLowConfidence, setIsLowConfidence] = useState(false);
   const [showDemoSelector, setShowDemoSelector] = useState(false);
-  const [demoSelectedLang, setDemoSelectedLang] = useState<LanguageCode>('ta');
+  const [speakingTargetLang, setSpeakingTargetLang] = useState<LanguageCode | 'auto'>('auto');
   const [micVolume, setMicVolume] = useState<number>(0);
-  const [activeMode, setActiveMode] = useState<'real-mic' | 'ai-preset'>('real-mic');
+  const [, setActiveMode] = useState<'real-mic' | 'ai-preset'>('real-mic');
   const [statusMessage, setStatusMessage] = useState('');
 
-  const defaultLangInfo = SUPPORTED_LANGUAGES.find((l) => l.code === 'ta') || SUPPORTED_LANGUAGES[0];
+  const defaultLangInfo =
+    SUPPORTED_LANGUAGES.find((l) => l.code === 'ta') || SUPPORTED_LANGUAGES[0];
 
   const welcomeText =
     'Welcome to AapThozhi. Speak in the language you are comfortable with. AapThozhi will understand and speak back in your language.';
@@ -47,7 +47,7 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
     // Initial friendly greeting
     const timer = setTimeout(() => {
       speechService.speak(welcomeText, 'en', 1.0);
-    }, 500);
+    }, 400);
 
     return () => {
       clearTimeout(timer);
@@ -58,19 +58,29 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
 
   /**
    * Start Voice Detection:
-   * 1. Attempts Native Microphone via Web Speech API
-   * 2. Automatically falls back to high-fidelity AI preset synthesis if mic is unavailable or blocked
+   * 1. Uses Web Speech API with selected regional language acoustic model or multi-accent auto-detect
+   * 2. If microphone is blocked or unsupported, automatically processes via AI preset engine
    */
   const handleMicrophoneClick = () => {
     speechService.stop();
     setDetectedLanguage(null);
     setIsLowConfidence(false);
     setTranscribedText('');
-    setStatusMessage('Listening to your microphone...');
+
+    const activeLangInfo =
+      speakingTargetLang !== 'auto'
+        ? SUPPORTED_LANGUAGES.find((l) => l.code === speakingTargetLang)
+        : null;
+
+    const listeningPrompt = activeLangInfo
+      ? `Listening for ${activeLangInfo.name} (${activeLangInfo.nativeName})... Speak now!`
+      : 'Listening in Auto-Detect mode... Speak in any language!';
+
+    setStatusMessage(listeningPrompt);
     setIsListening(true);
     setActiveMode('real-mic');
 
-    // Start audio visualizer
+    // Start real-time audio visualizer
     voiceDetectionService.startAudioVisualizer((vol) => {
       setMicVolume(vol);
     });
@@ -84,29 +94,29 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
           handleSuccessfulDetection(result.detectedLang, result.transcript, result.confidence);
         },
         (err) => {
-          // If mic error or permission denied, fallback smoothly to AI preset flow
           console.warn('Microphone recognition notice:', err);
-          simulateAIPresetFlow(demoSelectedLang);
+          // Fall back gracefully to preset simulation for the chosen language
+          const fallbackTarget = speakingTargetLang === 'auto' ? 'te' : speakingTargetLang;
+          simulateAIPresetFlow(fallbackTarget);
         },
-        demoSelectedLang
+        speakingTargetLang === 'auto' ? undefined : speakingTargetLang
       );
     } else {
-      simulateAIPresetFlow(demoSelectedLang);
+      const fallbackTarget = speakingTargetLang === 'auto' ? 'te' : speakingTargetLang;
+      simulateAIPresetFlow(fallbackTarget);
     }
   };
 
   /**
    * AI Preset Flow:
-   * Simulates speaking a realistic phrase in the chosen language and runs it through the classifier
+   * Simulates speaking a realistic phrase in the chosen language and triggers high-fidelity neural audio
    */
   const simulateAIPresetFlow = (langCode: LanguageCode, forceLowConfidence = false) => {
     setActiveMode('ai-preset');
     setIsListening(true);
-    setStatusMessage('Processing voice input...');
-
     const lang = SUPPORTED_LANGUAGES.find((l) => l.code === langCode) || defaultLangInfo;
+    setStatusMessage(`Recognizing ${lang.name} (${lang.nativeName})...`);
 
-    // Simulate animated speech recognition delay
     setTimeout(() => {
       setTranscribedText(lang.demoPhrase);
 
@@ -124,22 +134,27 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
         } else {
           handleSuccessfulDetection(lang.code, lang.demoPhrase, 98);
         }
-      }, 1200);
-    }, 1500);
+      }, 900);
+    }, 1100);
   };
 
-  const handleSuccessfulDetection = (langCode: LanguageCode, transcript: string, confidence: number) => {
+  const handleSuccessfulDetection = (
+    langCode: LanguageCode,
+    transcript: string,
+    confidence: number
+  ) => {
     setIsListening(false);
     voiceDetectionService.stopListening();
     const lang = SUPPORTED_LANGUAGES.find((l) => l.code === langCode) || defaultLangInfo;
     setDetectedLanguage(lang);
     setTranscribedText(transcript);
+    setSpeakingTargetLang(lang.code);
 
     // Confetti celebration
     try {
       confetti({
-        particleCount: 50,
-        spread: 60,
+        particleCount: 55,
+        spread: 65,
         origin: { y: 0.6 },
         colors: ['#9B5DE5', '#F3A6C8', '#45C27C', '#FFFFFF'],
       });
@@ -159,7 +174,18 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
     }
   };
 
-  const lowConfidenceTop3: LanguageCode[] = ['ta', 'hi', 'bn'];
+  // Top prominent languages for quick filter tabs
+  const PRIMARY_FILTER_LANGS: { code: LanguageCode | 'auto'; label: string; native: string }[] = [
+    { code: 'auto', label: 'Auto Detect', native: '🎙️ Multi-Voice' },
+    { code: 'te', label: 'Telugu', native: 'తెలుగు' },
+    { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
+    { code: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ' },
+    { code: 'mr', label: 'Marathi', native: 'मराठी' },
+    { code: 'hi', label: 'Hindi', native: 'हिन्दी' },
+    { code: 'bn', label: 'Bengali', native: 'বাংলা' },
+  ];
+
+  const lowConfidenceTop3: LanguageCode[] = ['te', 'ta', 'kn'];
 
   return (
     <div className="min-h-screen bg-[#0B1026] text-white flex flex-col justify-between p-4 sm:p-6 relative overflow-hidden">
@@ -201,34 +227,73 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-xs text-[#C9A7FF] font-medium transition-colors"
           >
             <Globe size={15} className="text-[#F3A6C8]" />
-            <span>All Languages</span>
+            <span>All 14 Languages</span>
           </button>
         </div>
       </header>
 
       {/* Main Central Stage */}
-      <main className="max-w-xl mx-auto w-full my-auto py-8 text-center flex flex-col items-center">
+      <main className="max-w-xl mx-auto w-full my-auto py-6 text-center flex flex-col items-center">
         {/* Core Accessibility Motto Badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#131A3B] border border-[#9B5DE5]/40 text-[#F3A6C8] text-xs font-semibold mb-6 shadow-md">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#131A3B] border border-[#9B5DE5]/40 text-[#F3A6C8] text-xs font-semibold mb-5 shadow-md">
           <Sparkles size={14} />
           <span>Dekho, Suno, Karo • See it. Hear it. Do it.</span>
         </div>
 
         {/* State 1: Default or Listening State */}
         {!detectedLanguage && !isLowConfidence && (
-          <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-300">
+          <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-300 w-full">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2 leading-tight max-w-md">
               Speak in the language you are comfortable with
             </h2>
-            <p className="text-sm sm:text-base text-[#B7BDD3] max-w-sm mb-6 leading-relaxed">
-              AapThozhi will understand your voice and speak back in your own language.
+            <p className="text-xs sm:text-sm text-[#B7BDD3] max-w-sm mb-5 leading-relaxed">
+              AapThozhi understands Telugu, Tamil, Kannada, Marathi, Hindi and 10 more languages.
             </p>
 
+            {/* Quick Speaking Language Selector Tabs */}
+            <div className="w-full max-w-md mb-5">
+              <div className="text-[11px] font-bold text-[#C9A7FF] uppercase tracking-wider mb-2 flex items-center justify-center gap-1.5">
+                <span>Select your language or use Auto-Detect:</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                {PRIMARY_FILTER_LANGS.map((pill) => {
+                  const isSelected = speakingTargetLang === pill.code;
+                  return (
+                    <button
+                      key={pill.code}
+                      type="button"
+                      onClick={() => {
+                        setSpeakingTargetLang(pill.code);
+                        if (pill.code !== 'auto') {
+                          const langObj = SUPPORTED_LANGUAGES.find((l) => l.code === pill.code);
+                          if (langObj) {
+                            speechService.speak(
+                              `${langObj.nativeName}. ${langObj.welcomeVoiceText}`,
+                              langObj.code,
+                              1.0
+                            );
+                          }
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-[#9B5DE5] to-[#8338EC] text-white border-[#F3A6C8] shadow-lg shadow-[#9B5DE5]/40 scale-105'
+                          : 'bg-[#141B3B] text-[#B7BDD3] border-[#9B5DE5]/30 hover:border-[#9B5DE5] hover:text-white'
+                      }`}
+                    >
+                      <span className="text-[13px]">{pill.native}</span>
+                      <span className="text-[10px] opacity-80">({pill.label})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Giant Central Microphone Button with Animated Ripple Waves */}
-            <div className="relative mb-6 flex items-center justify-center">
+            <div className="relative mb-5 flex items-center justify-center">
               {/* Dynamic Soundwave Rings reflecting actual voice/mic volume */}
               <div
-                className={`absolute w-48 h-48 rounded-full border-2 border-[#9B5DE5]/40 transition-transform duration-100 ${
+                className={`absolute w-44 h-44 rounded-full border-2 border-[#9B5DE5]/40 transition-transform duration-100 ${
                   isListening ? 'scale-110 opacity-75' : 'animate-pulse opacity-40'
                 }`}
                 style={{
@@ -236,7 +301,7 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
                 }}
               />
               <div
-                className={`absolute w-36 h-36 rounded-full bg-gradient-to-r from-[#9B5DE5]/30 to-[#F3A6C8]/30 ${
+                className={`absolute w-32 h-32 rounded-full bg-gradient-to-r from-[#9B5DE5]/30 to-[#F3A6C8]/30 ${
                   isListening ? 'animate-soundwave' : ''
                 }`}
               />
@@ -252,22 +317,22 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
                 }`}
                 aria-label="Tap to speak in your language"
               >
-                <Mic size={44} className={isListening ? 'animate-bounce' : ''} />
+                <Mic size={42} className={isListening ? 'animate-bounce' : ''} />
                 <span className="text-[11px] font-bold tracking-wide uppercase mt-1">
                   {isListening ? 'Listening...' : 'Tap & Speak'}
                 </span>
               </button>
             </div>
 
-            {/* Simulated Live Transcription */}
+            {/* Live Transcription Box */}
             {isListening && (
-              <div className="p-4 rounded-2xl bg-[#141B3B] border border-[#9B5DE5]/40 max-w-md w-full shadow-lg animate-pulse mb-6">
+              <div className="p-4 rounded-2xl bg-[#141B3B] border border-[#9B5DE5]/40 max-w-md w-full shadow-lg animate-pulse mb-5">
                 <div className="flex items-center justify-center gap-1.5 text-xs text-[#F3A6C8] font-bold uppercase mb-1">
                   <span className="w-2 h-2 rounded-full bg-[#EF6A7B] animate-ping" />
                   {statusMessage || 'Listening to your voice...'}
                 </div>
                 <p className="text-sm text-white italic min-h-6">
-                  {transcribedText ? `“${transcribedText}”` : 'Listening... please speak in Tamil, Hindi, or any language'}
+                  {transcribedText ? `“${transcribedText}”` : 'Speak now in Telugu, Tamil, Kannada, Marathi or any language...'}
                 </p>
                 {/* Voice amplitude meter */}
                 <div className="flex items-center justify-center gap-1 mt-2">
@@ -286,16 +351,16 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
             )}
 
             {/* Privacy Reassurance Note */}
-            <div className="flex items-center gap-2 text-xs text-[#B7BDD3] max-w-sm mb-6">
+            <div className="flex items-center gap-2 text-xs text-[#B7BDD3] max-w-sm mb-5">
               <ShieldCheck size={18} className="text-[#45C27C] shrink-0" />
-              <span>Your voice is processed safely to detect language and request.</span>
+              <span>Voice is processed safely for language recognition & assistance.</span>
             </div>
 
             {/* Quick 14-Language Immediate Select & Voice Test Grid */}
             <div className="pt-4 border-t border-[#9B5DE5]/20 w-full max-w-lg">
               <div className="flex items-center justify-between mb-3 px-1">
                 <span className="text-xs font-bold text-[#F3A6C8] flex items-center gap-1.5">
-                  <Sparkles size={14} />
+                  <Volume2 size={15} />
                   <span>Tap any language to hear & continue:</span>
                 </span>
                 <span className="text-[11px] text-[#45C27C] font-semibold bg-[#45C27C]/10 px-2 py-0.5 rounded-full border border-[#45C27C]/30">
@@ -309,7 +374,7 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
                     key={lang.code}
                     type="button"
                     onClick={() => {
-                      setDemoSelectedLang(lang.code);
+                      setSpeakingTargetLang(lang.code);
                       handleSuccessfulDetection(lang.code, lang.demoPhrase, 98);
                     }}
                     className="p-2.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 hover:border-[#F3A6C8] transition-all group cursor-pointer shadow-sm hover:scale-[1.02]"
@@ -319,7 +384,10 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
                       <span className="text-sm font-bold text-white group-hover:text-[#F3A6C8] transition-colors">
                         {lang.nativeName}
                       </span>
-                      <Volume2 size={13} className="text-[#C9A7FF] group-hover:text-white shrink-0" />
+                      <Volume2
+                        size={14}
+                        className="text-[#C9A7FF] group-hover:text-white shrink-0"
+                      />
                     </div>
                     <span className="text-[10px] text-[#B7BDD3] block mt-0.5">
                       {lang.name}
@@ -335,30 +403,30 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
         {detectedLanguage && !isLowConfidence && (
           <div className="w-full max-w-md bg-gradient-to-b from-[#141B3B] to-[#0D1333] border-3 border-[#45C27C] rounded-3xl p-6 sm:p-8 shadow-2xl text-center animate-in zoom-in-95 duration-300">
             {/* Big Green Checkmark */}
-            <div className="w-20 h-20 rounded-full bg-[#45C27C] text-[#0B1026] flex items-center justify-center mx-auto mb-4 shadow-xl shadow-[#45C27C]/30 animate-bounce">
-              <Check size={44} strokeWidth={3.5} />
+            <div className="w-16 h-16 rounded-full bg-[#45C27C] text-[#0B1026] flex items-center justify-center mx-auto mb-3 shadow-xl shadow-[#45C27C]/30 animate-bounce">
+              <Check size={38} strokeWidth={3.5} />
             </div>
 
             <span className="inline-block text-xs uppercase font-extrabold tracking-widest text-[#45C27C] bg-[#45C27C]/15 px-3 py-1 rounded-full mb-2">
               High Confidence (98% match)
             </span>
 
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-1">
+            <h2 className="text-3xl font-extrabold text-white mb-1">
               {detectedLanguage.nativeName}
             </h2>
-            <p className="text-sm font-semibold text-[#C9A7FF] mb-4">
+            <p className="text-sm font-semibold text-[#C9A7FF] mb-3">
               {detectedLanguage.name} • {detectedLanguage.script}
             </p>
 
             {/* Transcribed sample */}
             {transcribedText && (
-              <div className="p-3 bg-[#0B1026]/70 rounded-2xl border border-[#9B5DE5]/20 mb-5 text-xs text-[#B7BDD3] italic">
+              <div className="p-3 bg-[#0B1026]/70 rounded-2xl border border-[#9B5DE5]/20 mb-4 text-xs text-[#B7BDD3] italic">
                 “{transcribedText}”
               </div>
             )}
 
             {/* Confirmation Question in Native Script with Crystal-Clear Neural Speaker */}
-            <div className="p-4 rounded-2xl bg-[#9B5DE5]/15 border border-[#9B5DE5]/30 mb-6 flex items-center justify-between gap-3 text-left">
+            <div className="p-4 rounded-2xl bg-[#9B5DE5]/15 border border-[#9B5DE5]/30 mb-5 flex items-center justify-between gap-3 text-left">
               <div>
                 <p className="text-sm font-bold text-white m-0">
                   {detectedLanguage.welcomeVoiceText}
@@ -368,13 +436,13 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
                 </p>
               </div>
               <SpeakerButton
-                textToSpeak={detectedLanguage.welcomeVoiceText}
+                textToSpeak={`${detectedLanguage.nativeName}. ${detectedLanguage.welcomeVoiceText}`}
                 langCode={detectedLanguage.code}
                 size="md"
               />
             </div>
 
-            {/* 3 Big Icon-Based Action Buttons */}
+            {/* Action Buttons */}
             <div className="space-y-3">
               {/* Button 1: Green checkmark - Yes, continue */}
               <button
@@ -393,17 +461,20 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
                   onClick={onOpenLanguageList}
                   className="py-3 px-3 rounded-2xl bg-[#1A234E] hover:bg-[#9B5DE5]/30 border border-[#9B5DE5]/40 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
-                  <Globe size={18} className="text-[#F3A6C8]" />
-                  <span>Change language</span>
+                  <Globe size={17} className="text-[#F3A6C8]" />
+                  <span>All Languages</span>
                 </button>
 
                 {/* Button 3: Mic - Speak again */}
                 <button
                   type="button"
-                  onClick={handleMicrophoneClick}
+                  onClick={() => {
+                    setDetectedLanguage(null);
+                    handleMicrophoneClick();
+                  }}
                   className="py-3 px-3 rounded-2xl bg-[#1A234E] hover:bg-[#9B5DE5]/30 border border-[#9B5DE5]/40 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
-                  <RotateCcw size={17} className="text-[#C9A7FF]" />
+                  <RotateCcw size={16} className="text-[#C9A7FF]" />
                   <span>Speak again</span>
                 </button>
               </div>
@@ -437,7 +508,10 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
                     onClick={() => {
                       setDetectedLanguage(lang);
                       setIsLowConfidence(false);
-                      speechService.speak(lang.welcomeVoiceText, lang.code);
+                      speechService.speak(
+                        `${lang.nativeName}. ${lang.welcomeVoiceText}`,
+                        lang.code
+                      );
                     }}
                     className="p-3.5 rounded-2xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 flex items-center justify-between cursor-pointer transition-all hover:border-[#F3A6C8]"
                   >
@@ -452,7 +526,7 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
 
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <SpeakerButton
-                        textToSpeak={lang.welcomeVoiceText}
+                        textToSpeak={`${lang.nativeName}. ${lang.welcomeVoiceText}`}
                         langCode={lang.code}
                         size="sm"
                       />
@@ -461,7 +535,10 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
                         onClick={() => {
                           setDetectedLanguage(lang);
                           setIsLowConfidence(false);
-                          speechService.speak(lang.welcomeVoiceText, lang.code);
+                          speechService.speak(
+                            `${lang.nativeName}. ${lang.welcomeVoiceText}`,
+                            lang.code
+                          );
                         }}
                         className="px-3 py-1.5 rounded-xl bg-[#45C27C] text-[#0B1026] text-xs font-bold"
                       >
@@ -513,11 +590,11 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
                     key={lang.code}
                     type="button"
                     onClick={() => {
-                      setDemoSelectedLang(lang.code);
+                      setSpeakingTargetLang(lang.code);
                       simulateAIPresetFlow(lang.code, false);
                     }}
                     className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors flex items-center gap-1.5 ${
-                      demoSelectedLang === lang.code
+                      speakingTargetLang === lang.code
                         ? 'bg-[#9B5DE5] text-white border-[#F3A6C8]'
                         : 'bg-[#141B3B] text-[#C9A7FF] border-[#9B5DE5]/30 hover:bg-[#1A234E]'
                     }`}
@@ -529,7 +606,9 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-[#9B5DE5]/15 text-xs">
-                <span className="text-[#B7BDD3]">Voice engine: <strong>Google Neural Multilingual Audio (High Definition)</strong></span>
+                <span className="text-[#B7BDD3]">
+                  Voice engine: <strong>Google Neural Multilingual Audio (High Definition)</strong>
+                </span>
                 <button
                   type="button"
                   onClick={() => simulateAIPresetFlow('ta', true)}

@@ -18,6 +18,7 @@ class SpeechService {
   private activeAudio: HTMLAudioElement | null = null;
   private simulatedTimer: number | null = null;
   private currentEngine: 'neural-tts' | 'browser-speech' = 'neural-tts';
+  private sessionId = 0;
 
   public subscribe(listener: SpeechListener): () => void {
     this.listeners.push(listener);
@@ -41,13 +42,19 @@ class SpeechService {
       langCode: this.currentLang,
       engine: this.currentEngine,
     };
-    this.listeners.forEach((listener) => listener(state));
+    this.listeners.forEach((listener) => {
+      try {
+        listener(state);
+      } catch (e) {
+        console.error('Error in speech listener:', e);
+      }
+    });
   }
 
   /**
    * High-Definition Multilingual Text-to-Speech Engine
-   * Primary: Google Neural Multilingual TTS (crystal-clear, human-sounding native accents)
-   * Secondary: Web Speech API (with strict language matching)
+   * Primary: Google Multilingual Neural Audio (crystal-clear human native voices)
+   * Secondary: Web Speech API (with regional Indian accents)
    */
   public speak(
     text: string,
@@ -55,7 +62,10 @@ class SpeechService {
     speed: number = 1.0,
     onFinish?: () => void
   ): void {
-    this.stop();
+    // Increment session ID to discard any in-flight callbacks from previous utterances
+    const mySessionId = ++this.sessionId;
+
+    this.stopInternal(false);
 
     if (!text || text.trim() === '') {
       if (onFinish) onFinish();
@@ -69,7 +79,7 @@ class SpeechService {
     this.currentEngine = 'neural-tts';
     this.notify();
 
-    // Map language code to Google TTS language parameter
+    // Map language code to Google TTS language code
     const ttsLangMap: Record<LanguageCode, string> = {
       ta: 'ta',
       hi: 'hi',
@@ -89,10 +99,11 @@ class SpeechService {
 
     const targetLang = ttsLangMap[langCode] || 'en';
 
-    // Break text into natural audio chunks (under 180 chars for seamless streaming)
-    const chunks = this.splitIntoAudioChunks(text, 180);
+    // Break text into natural audio chunks (under 90 chars for smooth streaming)
+    const chunks = this.splitIntoAudioChunks(text, 90);
 
-    this.playAudioChunksSequentially(chunks, targetLang, speed, 0, () => {
+    this.playAudioChunksSequentially(chunks, targetLang, speed, 0, mySessionId, () => {
+      if (this.sessionId !== mySessionId) return;
       this.isCurrentlySpeaking = false;
       this.notify();
       if (onFinish) onFinish();
@@ -110,7 +121,6 @@ class SpeechService {
       } else {
         if (currentChunk) chunks.push(currentChunk);
         if (sentence.length > maxLength) {
-          // Break by comma or word
           const words = sentence.split(' ');
           let subChunk = '';
           for (const w of words) {
@@ -136,65 +146,119 @@ class SpeechService {
     lang: string,
     speed: number,
     index: number,
+    mySessionId: number,
     onComplete: () => void
   ): void {
-    if (index >= chunks.length || !this.isCurrentlySpeaking) {
+    if (this.sessionId !== mySessionId || !this.isCurrentlySpeaking) {
+      return;
+    }
+
+    if (index >= chunks.length) {
       onComplete();
       return;
     }
 
     const chunk = chunks[index];
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(
-      chunk
-    )}`;
+    const encoded = encodeURIComponent(chunk);
+    // Use tw-ob as primary and gtx as secondary
+    const primaryUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encoded}`;
+    const secondaryUrl = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=${lang}&q=${encoded}`;
+
+    let isHandled = false;
+
+    const proceedNext = () => {
+      if (this.sessionId !== mySessionId) return;
+      this.playAudioChunksSequentially(chunks, lang, speed, index + 1, mySessionId, onComplete);
+    };
+
+    const tryFallback = () => {
+      if (isHandled || this.sessionId !== mySessionId) return;
+      isHandled = true;
+      this.fallbackStrictSpeechSynthesis(chunk, lang, speed, mySessionId, proceedNext);
+    };
 
     try {
-      const audio = document.createElement('audio');
+      const audio = new Audio();
       audio.setAttribute('referrerpolicy', 'no-referrer');
       (audio as any).referrerPolicy = 'no-referrer';
-      audio.crossOrigin = 'anonymous';
-      audio.src = url;
       audio.playbackRate = speed;
       this.activeAudio = audio;
 
+      let hasTriedSecondary = false;
+
       audio.onended = () => {
-        this.playAudioChunksSequentially(chunks, lang, speed, index + 1, onComplete);
+        if (isHandled || this.sessionId !== mySessionId) return;
+        isHandled = true;
+        proceedNext();
       };
 
-      audio.onerror = () => {
-        // Fallback to strict browser speech synthesis if network fails
-        this.fallbackStrictSpeechSynthesis(chunk, lang, speed, () => {
-          this.playAudioChunksSequentially(chunks, lang, speed, index + 1, onComplete);
-        });
+      audio.onerror = (e) => {
+        if (isHandled || this.sessionId !== mySessionId) return;
+        if (!hasTriedSecondary) {
+          hasTriedSecondary = true;
+          try {
+            audio.src = secondaryUrl;
+            const p = audio.play();
+            if (p) {
+              p.catch((err) => {
+                if (err && err.name === 'AbortError') return;
+                tryFallback();
+              });
+            }
+          } catch {
+            tryFallback();
+          }
+        } else {
+          tryFallback();
+        }
       };
 
+      audio.src = primaryUrl;
       const playPromise = audio.play();
+
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
-          console.warn('Audio play attempt notice:', err);
-          // If browser blocks audio autoplay or URL is restricted
-          this.fallbackStrictSpeechSynthesis(chunk, lang, speed, () => {
-            this.playAudioChunksSequentially(chunks, lang, speed, index + 1, onComplete);
-          });
+          if (this.sessionId !== mySessionId) return;
+          if (err && err.name === 'AbortError') {
+            // User intentionally aborted or paused
+            return;
+          }
+          if (!hasTriedSecondary) {
+            hasTriedSecondary = true;
+            try {
+              audio.src = secondaryUrl;
+              const p = audio.play();
+              if (p) {
+                p.catch((err2) => {
+                  if (err2 && err2.name === 'AbortError') return;
+                  tryFallback();
+                });
+              }
+            } catch {
+              tryFallback();
+            }
+          } else {
+            tryFallback();
+          }
         });
       }
     } catch {
-      this.fallbackStrictSpeechSynthesis(chunk, lang, speed, () => {
-        this.playAudioChunksSequentially(chunks, lang, speed, index + 1, onComplete);
-      });
+      tryFallback();
     }
   }
 
   /**
-   * Fallback using browser speechSynthesis with STRICT voice checking
-   * Prevents English voices from attempting to speak Tamil/Hindi/Bengali text!
+   * Browser SpeechSynthesis Fallback
+   * Uses native regional voice if available, or Google Hindi / Indian English voice with clear accent.
    */
   private fallbackStrictSpeechSynthesis(
     text: string,
     langCode: string,
     speed: number,
+    mySessionId: number,
     onFinish: () => void
   ): void {
+    if (this.sessionId !== mySessionId) return;
     this.currentEngine = 'browser-speech';
     this.notify();
 
@@ -206,35 +270,45 @@ class SpeechService {
         utterance.rate = speed;
 
         const voices = window.speechSynthesis.getVoices();
-        // STRICT FILTER: Voice MUST match the language code or prefix!
-        const strictMatchingVoice = voices.find(
+        
+        // 1. Try to find an exact matching voice for language code
+        const matchingVoice = voices.find(
           (v) =>
             v.lang.toLowerCase().startsWith(langCode.toLowerCase()) ||
             v.lang.toLowerCase().replace('_', '-').includes(`${langCode.toLowerCase()}-in`)
         );
 
-        if (strictMatchingVoice) {
-          utterance.voice = strictMatchingVoice;
-          utterance.onend = () => onFinish();
-          utterance.onerror = () => onFinish();
-          window.speechSynthesis.speak(utterance);
-        } else if (langCode === 'en') {
-          // For English, standard English voice is fine
-          const englishVoice = voices.find((v) => v.lang.toLowerCase().startsWith('en'));
-          if (englishVoice) utterance.voice = englishVoice;
-          utterance.onend = () => onFinish();
-          utterance.onerror = () => onFinish();
-          window.speechSynthesis.speak(utterance);
-        } else {
-          // Do not send Indian text to a mismatched English voice
-          setTimeout(() => onFinish(), 600);
-          return;
+        // 2. If no direct voice, try Indian English or Google Hindi voice
+        const indianVoice =
+          matchingVoice ||
+          voices.find((v) => v.lang.toLowerCase().includes('hi-in') || v.name.toLowerCase().includes('hindi')) ||
+          voices.find((v) => v.lang.toLowerCase().includes('en-in')) ||
+          voices.find((v) => v.lang.toLowerCase().startsWith('en')) ||
+          voices[0];
+
+        if (indianVoice) {
+          utterance.voice = indianVoice;
         }
 
-        // Safety timeout in case speech engine hangs
-        const duration = Math.max(2000, (text.length / 10) * 1000 * (1 / speed));
-        if (this.simulatedTimer) clearTimeout(this.simulatedTimer);
-        this.simulatedTimer = window.setTimeout(() => onFinish(), duration + 1000);
+        let finished = false;
+        const completeOnce = () => {
+          if (finished || this.sessionId !== mySessionId) return;
+          finished = true;
+          if (this.simulatedTimer) {
+            clearTimeout(this.simulatedTimer);
+            this.simulatedTimer = null;
+          }
+          onFinish();
+        };
+
+        utterance.onend = completeOnce;
+        utterance.onerror = completeOnce;
+
+        window.speechSynthesis.speak(utterance);
+
+        // Safety timeout so speech never hangs
+        const duration = Math.max(1500, (text.length / 8) * 1000 * (1 / speed));
+        this.simulatedTimer = window.setTimeout(completeOnce, duration + 1000);
       } catch {
         onFinish();
       }
@@ -244,9 +318,21 @@ class SpeechService {
   }
 
   public stop(): void {
+    this.sessionId++; // Invalidate any running session
+    this.stopInternal(true);
+  }
+
+  private stopInternal(notifyListeners: boolean): void {
     if (this.activeAudio) {
-      this.activeAudio.pause();
-      this.activeAudio.currentTime = 0;
+      // Remove handlers before pausing to prevent triggering onerror/onended
+      this.activeAudio.onended = null;
+      this.activeAudio.onerror = null;
+      try {
+        this.activeAudio.pause();
+        this.activeAudio.currentTime = 0;
+      } catch {
+        // ignore
+      }
       this.activeAudio = null;
     }
     if (this.simulatedTimer) {
@@ -261,7 +347,9 @@ class SpeechService {
       }
     }
     this.isCurrentlySpeaking = false;
-    this.notify();
+    if (notifyListeners) {
+      this.notify();
+    }
   }
 
   public getIsSpeaking(): boolean {

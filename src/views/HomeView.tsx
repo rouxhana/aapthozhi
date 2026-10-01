@@ -1,16 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Baby,
-  BookOpen,
   Camera,
+  CheckCircle,
   ChevronRight,
+  ExternalLink,
+  FileText,
+  Flame,
   GraduationCap,
   HeartPulse,
+  HelpCircle,
+  Loader2,
+  MapPin,
   Mic,
+  MicOff,
   PersonStanding,
+  PiggyBank,
+  RotateCcw,
+  Scissors,
+  Search,
   Shield,
   Sparkles,
-  Stethoscope,
   Users,
   Volume2,
 } from 'lucide-react';
@@ -18,6 +28,23 @@ import { LanguageCode } from '../types';
 import { TRANSLATIONS } from '../data/translations';
 import { SpeakerButton } from '../components/SpeakerButton';
 import { speechService } from '../services/speechService';
+import { voiceDetectionService } from '../services/voiceDetectionService';
+import { SCHEMES_DATABASE, SchemeDatabaseRecord } from '../data/schemesDatabase';
+import { WhatToSayModal } from '../components/WhatToSayModal';
+import { ExternalLinkModal } from '../components/ExternalLinkModal';
+
+export interface SchemeItem {
+  id: number | string;
+  scheme_name: string;
+  category: string;
+  who_is_it_for: string;
+  main_benefit: string;
+  documents_needed: string;
+  how_to_apply: string;
+  keywords: string[];
+  state?: string;
+  official_url?: string;
+}
 
 interface HomeViewProps {
   currentLanguage: LanguageCode;
@@ -27,6 +54,7 @@ interface HomeViewProps {
   onOpenPointAndAsk: () => void;
   onOpenTrustedHelper: () => void;
   onOpenSafetyCenter: () => void;
+  onSelectSchemeId?: (schemeId: string) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -37,16 +65,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenPointAndAsk,
   onOpenTrustedHelper,
   onOpenSafetyCenter,
+  onSelectSchemeId,
 }) => {
   const [isMicActive, setIsMicActive] = useState(false);
   const [activeSpokenText, setActiveSpokenText] = useState('');
+  const [allSchemes, setAllSchemes] = useState<SchemeItem[]>(SCHEMES_DATABASE);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('All');
+  const [activeWhatToSayScheme, setActiveWhatToSayScheme] = useState<SchemeItem | null>(null);
+  const [externalModalUrl, setExternalModalUrl] = useState<{ url: string; portalName: string } | null>(null);
 
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
-
   const heroVoiceText = `${t.greetingWoman}. ${t.heroTellNeed}. ${t.heroSub}`;
 
+  // Initial friendly audio greeting
   useEffect(() => {
-    // Initial friendly greeting
     const timer = setTimeout(() => {
       speechService.speak(`${t.greetingWoman}. ${t.heroTellNeed}`, currentLanguage, 1.0);
     }, 400);
@@ -55,6 +89,115 @@ export const HomeView: React.FC<HomeViewProps> = ({
       speechService.stop();
     };
   }, [currentLanguage]);
+
+  // Standard React useEffect hook to dynamically fetch schemes data from /all_schemes.json on component render
+  useEffect(() => {
+    setIsLoading(true);
+
+    fetch('/all_schemes.json')
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data: SchemeItem[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setAllSchemes(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('Direct /all_schemes.json fetch failed, trying relative path:', err);
+        // Fallback for subpaths or local bundled database
+        return fetch('./all_schemes.json')
+          .then((res) => {
+            if (!res.ok) throw new Error(`Relative fetch failed: ${res.status}`);
+            return res.json();
+          })
+          .then((data: SchemeItem[]) => {
+            if (Array.isArray(data) && data.length > 0) {
+              setAllSchemes(data);
+            }
+          })
+          .catch((fallbackErr) => {
+            console.warn('Using bundled schemes fallback:', fallbackErr);
+            setAllSchemes(SCHEMES_DATABASE);
+          });
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, []);
+
+  // Simple text filtering input match rule:
+  // When users interact with the microphone state or search inputs, it quickly pulls matches from our database.
+  const matchedSchemes = useMemo(() => {
+    if (!allSchemes || allSchemes.length === 0) return [];
+
+    let result = allSchemes;
+
+    // Filter by category if selected
+    if (selectedCategoryFilter !== 'All') {
+      result = result.filter((s) =>
+        (s.category || '').toLowerCase().includes(selectedCategoryFilter.toLowerCase())
+      );
+    }
+
+    const query = searchInput.trim().toLowerCase();
+    if (!query) {
+      // Default view: show initial featured citizen schemes
+      return result.slice(0, 10);
+    }
+
+    const rawTokens = query.split(/\s+/).filter(Boolean);
+
+    // Multilingual synonym mappings for voice recognition and vernacular queries
+    const synonymMap: Record<string, string[]> = {
+      gas: ['gas', 'cylinder', 'stove', 'chulha', 'ujjwala', 'lpg', 'cooking', 'kitchen', 'गैस', 'चूल्हा', 'గ్యాస్', 'అடுப்பு', 'அடுப்பு', 'ಸಿಲಿಂಡರ್'],
+      sewing: ['sewing', 'machine', 'stitching', 'tailor', 'silai', 'सिलाई', 'कुట్టు', 'தையல்', 'ಹೊಲಿಗೆ', 'शिलाई'],
+      education: ['education', 'scholarship', 'school', 'college', 'student', 'study', 'books', 'fees', 'pragati', 'balika', 'shiksha', 'padhai', 'beti', 'చదువు', 'கல்வி', 'ಶಿಕ್ಷಣ', 'शिक्षण', '50000', '50k'],
+      maternity: ['pregnant', 'baby', 'mother', 'health', 'hospital', 'delivery', 'maternity', 'poshan', 'nutrition', 'garbhavati', 'गर्भावस्था', 'தாய்', 'ತಾಯಿ', 'आई', '5000'],
+      savings: ['savings', 'bank', 'marriage', 'money', 'child', 'sukanya', 'ssy', 'account', 'interest', 'बचत', 'खाता', 'పొదుపు', 'சேமிப்பு', 'ಉಳಿತಾಯ'],
+      pension: ['pension', 'elderly', 'senior', 'old age', 'widow', 'retirement', 'पेंशन', 'वृद्धावस्था', 'పింఛను', 'ஓய்வூதியம்', 'ಪಿಂಚಣಿ'],
+      health: ['health', 'medical', 'hospital', 'treatment', 'ayushman', 'card', 'arogya', 'swasthya', 'दवा', 'వైద్యం', 'மருத்துவம்', 'ಆರೋಗ್ಯ'],
+    };
+
+    const expandedTokens = new Set<string>(rawTokens);
+    for (const token of rawTokens) {
+      for (const [key, syns] of Object.entries(synonymMap)) {
+        if (syns.some((syn) => syn.includes(token) || token.includes(syn))) {
+          expandedTokens.add(key);
+          syns.forEach((s) => expandedTokens.add(s));
+        }
+      }
+    }
+
+    const tokens = Array.from(expandedTokens);
+
+    return result
+      .filter((s) => {
+        const name = (s.scheme_name || '').toLowerCase();
+        const benefit = (s.main_benefit || '').toLowerCase();
+        const who = (s.who_is_it_for || '').toLowerCase();
+        const docs = (s.documents_needed || '').toLowerCase();
+        const apply = (s.how_to_apply || '').toLowerCase();
+        const cat = (s.category || '').toLowerCase();
+        const kw = (s.keywords || []).map((k) => k.toLowerCase()).join(' ');
+
+        // Check if any query token matches any field
+        return tokens.some(
+          (t) =>
+            name.includes(t) ||
+            benefit.includes(t) ||
+            who.includes(t) ||
+            docs.includes(t) ||
+            apply.includes(t) ||
+            cat.includes(t) ||
+            kw.includes(t)
+        );
+      })
+      .slice(0, 12);
+  }, [allSchemes, searchInput, selectedCategoryFilter]);
 
   // Dynamic spoken phrases tailored to the user's active language
   const getLocalizedQueries = () => {
@@ -106,7 +249,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         pa: 'ਮਾਤਾ ਜੀ ਲਈ ਬੁਢਾਪਾ ਪੈਨਸ਼ਨ ਚਾਹੀਦੀ ਹੈ।',
         od: 'ମାଆଙ୍କ ପାଇଁ ବାର୍ଦ୍ଧକ୍ୟ ପେନସନ ଦରକାର।',
         as: 'মাৰ বাবে বৃদ্ধ পেঞ্চন লাগে।',
-        ur: 'والدہ کے لیے بڑھاپا پنشن چاہیے۔' ,
+        ur: 'والدہ کے لیے بڑھاپا پنشن چاہیے۔',
         hinglish: 'Mummy ke liye elderly pension help chahiye.',
         en: 'My mother needs pension help.',
       },
@@ -132,29 +275,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {
         category: 'education' as const,
         text: qMap.education[currentLanguage] || qMap.education.en,
-        translatedText: qMap.education[currentLanguage] || qMap.education.en,
-        label: t.educationCard,
         icon: '🎓',
       },
       {
         category: 'maternity' as const,
         text: qMap.maternity[currentLanguage] || qMap.maternity.en,
-        translatedText: qMap.maternity[currentLanguage] || qMap.maternity.en,
-        label: t.maternityCard,
         icon: '🤱',
       },
       {
         category: 'pension' as const,
         text: qMap.pension[currentLanguage] || qMap.pension.en,
-        translatedText: qMap.pension[currentLanguage] || qMap.pension.en,
-        label: t.pensionCard,
         icon: '👵',
       },
       {
         category: 'health' as const,
         text: qMap.health[currentLanguage] || qMap.health.en,
-        translatedText: qMap.health[currentLanguage] || qMap.health.en,
-        label: t.healthCard,
         icon: '🏥',
       },
     ];
@@ -162,25 +297,84 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const demoVoiceQueries = getLocalizedQueries();
 
+  // Microphone interaction: activates listening, speaks prompt, and updates text filter to pull matches
   const handleMicClick = () => {
+    if (isMicActive) {
+      setIsMicActive(false);
+      voiceDetectionService.stopListening();
+      return;
+    }
+
     setIsMicActive(true);
     speechService.speak(t.listening, currentLanguage, 1.0);
 
-    const defaultSpoken = demoVoiceQueries[0].text;
+    let captured = false;
+
+    voiceDetectionService.startListening(
+      (interim: string) => {
+        if (interim) {
+          captured = true;
+          setActiveSpokenText(interim);
+          setSearchInput(interim);
+        }
+      },
+      (res: any) => {
+        captured = true;
+        setIsMicActive(false);
+        setActiveSpokenText(res.transcript);
+        setSearchInput(res.transcript);
+        onVoiceSearchQuery(res.transcript);
+      },
+      () => {
+        if (!captured) {
+          const sample = demoVoiceQueries[0].text;
+          setTimeout(() => {
+            setActiveSpokenText(sample);
+            setSearchInput(sample);
+            setTimeout(() => {
+              setIsMicActive(false);
+              onVoiceSearchQuery(sample);
+            }, 1200);
+          }, 1000);
+        }
+      },
+      currentLanguage
+    );
 
     setTimeout(() => {
-      setActiveSpokenText(defaultSpoken);
-      setTimeout(() => {
+      if (!captured && isMicActive) {
+        const sample = demoVoiceQueries[0].text;
+        setActiveSpokenText(sample);
+        setSearchInput(sample);
         setIsMicActive(false);
-        onVoiceSearchQuery(defaultSpoken);
-      }, 1400);
-    }, 1800);
+      }
+    }, 6000);
   };
 
   const handleVoiceQueryClick = (queryText: string) => {
+    setSearchInput(queryText);
     speechService.speak(queryText, currentLanguage, 1.0);
     onVoiceSearchQuery(queryText);
   };
+
+  const quickPillPrompts = [
+    { label: '🌸 Sukanya Samriddhi (SSY)', query: 'sukanya' },
+    { label: '🔥 Free Gas Cylinder (PMUY)', query: 'gas' },
+    { label: '🎓 Pragati Scholarship (₹50k)', query: 'pragati' },
+    { label: '🤱 Matru Vandana (₹5,000)', query: 'matru' },
+    { label: '🧵 Free Sewing Machine', query: 'sewing' },
+    { label: '🏥 Ayushman Bharat', query: 'ayushman' },
+    { label: '👵 Old Age Pension', query: 'pension' },
+  ];
+
+  const categoryPills = [
+    { label: 'All', value: 'All' },
+    { label: 'Savings & Education', value: 'Savings' },
+    { label: 'Household Help', value: 'Household' },
+    { label: 'College & Education', value: 'College' },
+    { label: 'Motherhood & Health', value: 'Motherhood' },
+    { label: 'Jobs & Business', value: 'Jobs' },
+  ];
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
@@ -265,7 +459,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 key={idx}
                 type="button"
                 onClick={() => handleVoiceQueryClick(q.text)}
-                className="px-3.5 py-2 rounded-2xl bg-[#131A3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 hover:border-[#F3A6C8] text-xs text-white font-medium flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                className="px-3.5 py-2 rounded-2xl bg-[#131A3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 hover:border-[#F3A6C8] text-xs text-white font-medium flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
               >
                 <span>{q.icon}</span>
                 <span>“{q.text}”</span>
@@ -275,12 +469,288 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
-      {/* 4 Big Illustrated Service Cards */}
+      {/* DYNAMIC SCHEMES DATABASE SEARCH & MATCH RESULTS */}
+      <section className="space-y-5 bg-[#0B1028]/80 p-5 sm:p-7 rounded-3xl border-2 border-[#9B5DE5]/30 shadow-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#9B5DE5]/20 text-[#F3A6C8] border border-[#9B5DE5]/40 text-xs font-bold mb-1.5">
+              <Sparkles size={12} />
+              <span>Live Database from /all_schemes.json</span>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-extrabold text-white m-0">
+              Government Schemes Matching Your Request
+            </h3>
+            <p className="text-xs text-[#B7BDD3] m-0 mt-0.5">
+              Interact with the search input or microphone to quickly pull matches from our database.
+            </p>
+          </div>
+
+          <span className="text-xs px-3 py-1.5 rounded-xl bg-[#45C27C]/15 text-[#45C27C] border border-[#45C27C]/30 font-bold self-start sm:self-auto">
+            ⚡ {matchedSchemes.length} Matches Found
+          </span>
+        </div>
+
+        {/* Text Filtering Search Input */}
+        <div className="relative flex items-center">
+          <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9B5DE5]" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Type your request: e.g. gas, sewing machine, college fees, pregnancy, savings, pension..."
+            className="w-full pl-11 pr-28 py-3.5 rounded-2xl bg-[#141B3B] border-2 border-[#9B5DE5]/40 focus:border-[#F3A6C8] focus:outline-none text-white placeholder-[#7882A4] text-sm font-medium transition-all shadow-inner"
+          />
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => setSearchInput('')}
+                className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-[#1F2B5B] text-[#B7BDD3] hover:text-white border border-[#9B5DE5]/30 transition-colors cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleMicClick}
+              className={`p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center ${
+                isMicActive
+                  ? 'bg-[#EF6A7B] text-white ring-4 ring-[#EF6A7B]/40 animate-pulse'
+                  : 'bg-[#9B5DE5]/30 hover:bg-[#9B5DE5] text-[#F3A6C8] hover:text-white border border-[#9B5DE5]/50'
+              }`}
+              title={isMicActive ? 'Listening... click to stop' : 'Click to speak search query'}
+              aria-label="Microphone search"
+            >
+              {isMicActive ? <MicOff size={16} /> : <Mic size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Live Microphone State Banner */}
+        {isMicActive && (
+          <div className="p-3.5 rounded-2xl bg-[#EF6A7B]/15 border-2 border-[#EF6A7B]/50 flex items-center justify-between gap-3 text-white animate-pulse">
+            <div className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-[#EF6A7B] animate-ping shrink-0" />
+              <div>
+                <span className="text-xs font-extrabold text-[#EF6A7B] uppercase tracking-wider block">
+                  🎤 Microphone Active • Listening to your request...
+                </span>
+                <span className="text-xs text-[#E1E5F2] font-medium">
+                  {activeSpokenText ? `“${activeSpokenText}”` : 'Speak in your language (Tamil, Telugu, Hindi, Kannada, Marathi...)'}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleMicClick}
+              className="text-xs font-bold px-3 py-1.5 rounded-xl bg-[#EF6A7B] text-white hover:bg-[#d45667] transition-colors shrink-0 cursor-pointer"
+            >
+              Done
+            </button>
+          </div>
+        )}
+
+        {/* Quick Suggestion Pills */}
+        <div className="flex flex-wrap gap-1.5">
+          {quickPillPrompts.map((p, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setSearchInput(p.query)}
+              className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${
+                searchInput.toLowerCase().includes(p.query.toLowerCase())
+                  ? 'bg-[#9B5DE5] text-white border-[#F3A6C8] shadow-md shadow-[#9B5DE5]/40'
+                  : 'bg-[#141B3B] text-[#B7BDD3] hover:text-white border-[#9B5DE5]/30 hover:bg-[#1A234E]'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Category Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {categoryPills.map((cat, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setSelectedCategoryFilter(cat.value)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border cursor-pointer ${
+                selectedCategoryFilter === cat.value
+                  ? 'bg-gradient-to-r from-[#9B5DE5] to-[#8338EC] text-white border-[#F3A6C8] shadow-sm'
+                  : 'bg-[#141B3B] text-[#B7BDD3] hover:text-white border-[#9B5DE5]/30'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Loading Indicator */}
+        {isLoading && (
+          <div className="flex items-center justify-center gap-2 py-6 text-[#C9A7FF] text-sm font-semibold">
+            <Loader2 size={20} className="animate-spin text-[#9B5DE5]" />
+            <span>Fetching latest government schemes from /all_schemes.json...</span>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {matchedSchemes.length === 0 && !isLoading && (
+          <div className="p-8 text-center rounded-3xl bg-[#141B3B] border border-[#9B5DE5]/30 space-y-3">
+            <HelpCircle size={40} className="mx-auto text-[#F3A6C8]" />
+            <h4 className="text-lg font-bold text-white m-0">No schemes matched "{searchInput}"</h4>
+            <p className="text-xs text-[#B7BDD3] max-w-md mx-auto m-0">
+              Try typing keywords like <strong>gas</strong>, <strong>sewing machine</strong>, <strong>daughter</strong>, <strong>college</strong>, or tap the button below to view all schemes.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchInput('');
+                setSelectedCategoryFilter('All');
+              }}
+              className="px-4 py-2 rounded-xl bg-[#9B5DE5] hover:bg-[#8338EC] text-white text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+            >
+              <RotateCcw size={14} />
+              <span>Show All Schemes</span>
+            </button>
+          </div>
+        )}
+
+        {/* Matched Schemes Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          {matchedSchemes.map((scheme) => {
+            const voiceText = `${scheme.scheme_name}. For: ${scheme.who_is_it_for}. Main benefit: ${scheme.main_benefit}. Documents needed: ${scheme.documents_needed}. How to apply: ${scheme.how_to_apply}.`;
+
+            return (
+              <div
+                key={scheme.id}
+                className="p-5 rounded-3xl bg-gradient-to-br from-[#141B3B] to-[#0D1333] border-2 border-[#9B5DE5]/30 hover:border-[#F3A6C8] transition-all flex flex-col justify-between shadow-xl group"
+              >
+                <div>
+                  {/* Top Bar: Category badge & Audio Speaker */}
+                  <div className="flex items-start justify-between gap-3 mb-2.5">
+                    <div>
+                      <span className="inline-block text-[10px] uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-full bg-[#9B5DE5]/25 text-[#F3A6C8] border border-[#9B5DE5]/40 mb-1">
+                        {scheme.category}
+                      </span>
+                      <h4 className="text-lg font-bold text-white group-hover:text-[#F3A6C8] transition-colors leading-snug m-0">
+                        {scheme.scheme_name}
+                      </h4>
+                    </div>
+                    <SpeakerButton
+                      textToSpeak={voiceText}
+                      langCode={currentLanguage}
+                      size="sm"
+                      ariaLabel={`Listen to ${scheme.scheme_name}`}
+                    />
+                  </div>
+
+                  {/* Who is it for */}
+                  <div className="p-2.5 rounded-xl bg-[#090D24] border border-[#9B5DE5]/20 mb-2.5 flex items-start gap-2">
+                    <span className="text-xs font-bold text-[#45C27C] shrink-0 mt-0.5">👤 For:</span>
+                    <p className="text-xs text-[#E1E5F2] font-medium m-0 leading-relaxed">
+                      {scheme.who_is_it_for}
+                    </p>
+                  </div>
+
+                  {/* Main Benefit */}
+                  <div className="p-3 rounded-2xl bg-[#9B5DE5]/15 border border-[#F3A6C8]/30 mb-2.5">
+                    <span className="text-[11px] font-extrabold uppercase text-[#F3A6C8] block mb-0.5 flex items-center gap-1">
+                      <Sparkles size={12} />
+                      <span>Main Benefit</span>
+                    </span>
+                    <p className="text-xs sm:text-sm text-white font-semibold m-0 leading-relaxed">
+                      {scheme.main_benefit}
+                    </p>
+                  </div>
+
+                  {/* Documents Needed */}
+                  <div className="mb-2.5">
+                    <span className="text-[11px] font-bold uppercase text-[#C9A7FF] block mb-1 flex items-center gap-1">
+                      <FileText size={12} />
+                      <span>Documents Needed:</span>
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {scheme.documents_needed.split(',').map((doc, dIdx) => (
+                        <span
+                          key={dIdx}
+                          className="text-[11px] px-2 py-0.5 rounded-lg bg-[#141B3B] text-[#B7BDD3] border border-[#9B5DE5]/25 flex items-center gap-1"
+                        >
+                          <CheckCircle size={10} className="text-[#45C27C]" />
+                          {doc.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* How to Apply */}
+                  <div className="mb-3">
+                    <span className="text-[11px] font-bold uppercase text-[#45C27C] block mb-1 flex items-center gap-1">
+                      <MapPin size={12} />
+                      <span>How to Apply:</span>
+                    </span>
+                    <p className="text-xs text-[#B7BDD3] m-0 italic leading-relaxed">
+                      {scheme.how_to_apply}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card Action Buttons */}
+                <div className="pt-3 border-t border-[#9B5DE5]/20 flex items-center justify-between gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setActiveWhatToSayScheme(scheme)}
+                    className="px-3 py-1.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-xs font-bold text-[#C9A7FF] hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <HelpCircle size={14} className="text-[#F3A6C8]" />
+                    <span>What to Say</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {scheme.official_url && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExternalModalUrl({
+                            url: scheme.official_url || '',
+                            portalName: scheme.scheme_name,
+                          })
+                        }
+                        className="p-1.5 rounded-xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 text-[#C9A7FF] hover:text-white transition-colors"
+                        title="Official portal"
+                      >
+                        <ExternalLink size={15} />
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onSelectSchemeId) {
+                          onSelectSchemeId(String(scheme.id));
+                        } else {
+                          onSelectService('education');
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-[#9B5DE5] hover:bg-[#8338EC] text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-md shadow-[#9B5DE5]/30"
+                    >
+                      <span>Full Guide</span>
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 4 Big Illustrated Service Portals */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg sm:text-xl font-bold text-white m-0">
-              Essential Welfare Services
+              Essential Welfare Categories
             </h3>
             <p className="text-xs text-[#B7BDD3] m-0">
               Tap any card to hear explanation & view step-by-step guidance
@@ -436,7 +906,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <button
           type="button"
           onClick={onOpenPointAndAsk}
-          className="p-4 rounded-2xl bg-[#131A3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 flex items-center gap-3 text-left transition-all group"
+          className="p-4 rounded-2xl bg-[#131A3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 flex items-center gap-3 text-left transition-all group cursor-pointer"
         >
           <div className="p-3 rounded-xl bg-[#9B5DE5]/20 text-[#F3A6C8] border border-[#9B5DE5]/40 shrink-0 group-hover:scale-105 transition-transform">
             <Camera size={22} />
@@ -451,7 +921,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <button
           type="button"
           onClick={onOpenTrustedHelper}
-          className="p-4 rounded-2xl bg-[#131A3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 flex items-center gap-3 text-left transition-all group"
+          className="p-4 rounded-2xl bg-[#131A3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 flex items-center gap-3 text-left transition-all group cursor-pointer"
         >
           <div className="p-3 rounded-xl bg-[#45C27C]/20 text-[#45C27C] border border-[#45C27C]/40 shrink-0 group-hover:scale-105 transition-transform">
             <Users size={22} />
@@ -466,7 +936,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <button
           type="button"
           onClick={onOpenSafetyCenter}
-          className="p-4 rounded-2xl bg-[#131A3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 flex items-center gap-3 text-left transition-all group"
+          className="p-4 rounded-2xl bg-[#131A3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 flex items-center gap-3 text-left transition-all group cursor-pointer"
         >
           <div className="p-3 rounded-xl bg-[#EF6A7B]/20 text-[#EF6A7B] border border-[#EF6A7B]/40 shrink-0 group-hover:scale-105 transition-transform">
             <Shield size={22} />
@@ -477,6 +947,42 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </button>
       </section>
+
+      {/* Modal: What to say at the counter */}
+      {activeWhatToSayScheme && (
+        <WhatToSayModal
+          isOpen={!!activeWhatToSayScheme}
+          onClose={() => setActiveWhatToSayScheme(null)}
+          schemeTitle={activeWhatToSayScheme.scheme_name}
+          messageText={`Namaste. I am applying for ${activeWhatToSayScheme.scheme_name}. I have brought my ${activeWhatToSayScheme.documents_needed}. Please help me with the application form.`}
+          currentLanguage={currentLanguage}
+        />
+      )}
+
+      {/* Modal: External Link Modal with Safety Check */}
+      {externalModalUrl && (
+        <ExternalLinkModal
+          isOpen={!!externalModalUrl}
+          onClose={() => setExternalModalUrl(null)}
+          scheme={{
+            id: 'external-portal',
+            title: externalModalUrl.portalName,
+            category: 'education',
+            description: `Official government portal for ${externalModalUrl.portalName}`,
+            tagline: 'Official government portal',
+            benefits: [],
+            eligibility: [],
+            documents: [],
+            officialUrl: externalModalUrl.url,
+            officialPortalName: externalModalUrl.portalName,
+            offlineCenterTypes: [],
+            whatToSayText: '',
+            slowExplanationSteps: [],
+          }}
+          currentLanguage={currentLanguage}
+          onSavePlan={() => {}}
+        />
+      )}
     </div>
   );
 };
