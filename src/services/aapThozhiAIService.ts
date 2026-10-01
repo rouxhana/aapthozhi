@@ -32,12 +32,13 @@ class AapThozhiAIService {
   ): Promise<AapThozhiAIResponse> {
     const cleanQuery = (userQuery || '').trim();
     const detection = voiceDetectionService.classifyLanguageFromText(cleanQuery, preferredLang || 'ta');
+    const detectedLang = detection.detectedLang;
 
     if (geminiService.isAvailable()) {
-      const geminiRes = await geminiService.generateAapThozhiResponse(cleanQuery, preferredLang);
+      const geminiRes = await geminiService.generateAapThozhiResponse(cleanQuery, detectedLang);
       if (geminiRes && geminiRes.text) {
         return {
-          detectedLanguage: detection.detectedLang,
+          detectedLanguage: detectedLang,
           languageName: detection.scriptName,
           responseText: geminiRes.text,
           audioText: geminiRes.text,
@@ -47,7 +48,7 @@ class AapThozhiAIService {
       }
     }
 
-    return this.generateResponse(userQuery, preferredLang);
+    return this.generateResponse(userQuery, detectedLang);
   }
 
   /**

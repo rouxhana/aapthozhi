@@ -44,7 +44,7 @@ export const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('detective');
 
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>('scheme-education-girl');
-  const [currentVoiceQuery, setCurrentVoiceQuery] = useState<string>('I need help for my daughter’s education.');
+  const [currentVoiceQuery, setCurrentVoiceQuery] = useState<string>('');
   const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
 

@@ -159,8 +159,25 @@ Scheme ${i + 1}:
       }
 
       // ── Add language hint to prompt ───────────────────────────────────────
+      const LANG_NAMES: Record<string, string> = {
+        ta: 'Tamil (தமிழ்)',
+        hi: 'Hindi (हिन्दी)',
+        te: 'Telugu (తెలుగు)',
+        bn: 'Bengali (বাংলা)',
+        mr: 'Marathi (मराठी)',
+        kn: 'Kannada (ಕನ್ನಡ)',
+        gu: 'Gujarati (ગુજરાતી)',
+        ml: 'Malayalam (മലയാളം)',
+        pa: 'Punjabi (ਪੰਜਾਬੀ)',
+        od: 'Odia (ଓଡ଼ିଆ)',
+        as: 'Assamese (অসমীয়া)',
+        ur: 'Urdu (اردو)',
+        hinglish: 'Hinglish (Hindi in Roman script)',
+        en: 'English',
+      };
+      const langName = currentLanguage ? (LANG_NAMES[currentLanguage] || currentLanguage) : 'the user\'s language';
       const langHint = currentLanguage
-        ? `\n[USER LANGUAGE PREFERENCE: ${currentLanguage} — respond ONLY in this language]`
+        ? `\n[DETECTED USER LANGUAGE: ${langName} (${currentLanguage}) — You MUST respond 100% ONLY in ${langName}. Do NOT use English unless the query was asked in English. Keep tone warm, empathetic, and spoken.]`
         : '';
 
       const fullUserMessage = `${userMessage}${langHint}${contextInjection}`;

@@ -200,103 +200,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       .slice(0, 12);
   }, [allSchemes, searchInput, selectedCategoryFilter]);
 
-  // Dynamic spoken phrases tailored to the user's active language
-  const getLocalizedQueries = () => {
-    const qMap: Record<
-      'education' | 'maternity' | 'pension' | 'health',
-      Record<LanguageCode, string>
-    > = {
-      education: {
-        ta: 'என் மகளின் படிப்பு உதவிக்கு திட்டம் வேண்டும்.',
-        hi: 'मेरी बेटी की पढ़ाई के लिए सरकारी छात्रवृत्ति चाहिए।',
-        te: 'నా కుమార్తె చదువు కోసం విద్యా సహాయం కావాలి.',
-        bn: 'আমার মেয়ের পড়াশোনার জন্য সরকারি সাহায্য চাই।',
-        mr: 'माझ्या मुलीच्या शिक्षणासाठी शासकीय मदत हवी आहे.',
-        kn: 'ನನ್ನ ಮಗಳ ವಿದ್ಯಾಭ್ಯಾಸಕ್ಕೆ ವಿದ್ಯಾರ್ಥಿವೇತನ ನೆರವು ಬೇಕು.',
-        gu: 'મારી દીકરીના અભ્યાસ માટે સરકારી સહાય જોઈએ છે.',
-        ml: 'എന്റെ മകളുടെ പഠനത്തിനായുള്ള സ്കോളർഷിപ്പ് വേണം.',
-        pa: 'ਮੇਰੀ ਧੀ ਦੀ ਪੜ੍ਹਾਈ ਲਈ ਵਜ਼ੀਫ਼ਾ ਸਹਾਇਤਾ ਚਾਹੀਦੀ ਹੈ।',
-        od: 'ମୋ ଝିଅର ପାଠପଢ଼ା ପାଇଁ ସରକାରୀ ସହାୟତା ଦରକାର।',
-        as: 'মোৰ ছোৱালীৰ পঢ়া-শুনাৰ বাবে বৃত্তি সাহায্য লাগে।',
-        ur: 'میری بیٹی کی تعلیم کے لیے سرکاری وظیفہ چاہیے۔',
-        hinglish: 'Meri beti ki padhai ke liye scholarship chahiye.',
-        en: 'I need help for my daughter’s education.',
-      },
-      maternity: {
-        ta: 'கர்ப்பகால ஊட்டச்சத்து உதவித்தொகை வேண்டும்.',
-        hi: 'गर्भावस्था में पोषण व आर्थिक सहायता चाहिए।',
-        te: 'గర్భధారణ సమయంలో పోషణ సహాయం కావాలి.',
-        bn: 'গর্ভাবস্থায় পুষ্টি ও চিকিৎসার সহায়তা চাই।',
-        mr: 'गरोदरपणातील पोषण व आरोग्य मदत हवी आहे.',
-        kn: 'ಗರ್ಭಿಣಿ ಪೌಷ್ಟಿಕಾಂಶ ನೆರವು ಮತ್ತು ತಾಯಿ-ಮಗು ಕಾರ್ಡ್ ಬೇಕು.',
-        gu: 'સગર્ભાવસ્થા પોષણ અને આરોગ્ય સહાય જોઈએ છે.',
-        ml: 'ഗർഭകാല പോഷകാഹാര സഹായം വേണം.',
-        pa: 'ਗਰਭ ਅਵਸਥਾ ਦੌਰਾਨ ਪੋਸ਼ਣ ਸਹਾਇਤਾ ਚਾਹੀਦੀ ਹੈ।',
-        od: 'ଗର୍ଭାବସ୍ଥାରେ ପୋଷଣ ସହାୟତା ଦରକାର।',
-        as: 'গৰ্ভাৱস্থাত পুষ্টি সাহায্য লাগে।',
-        ur: 'حمل کے دوران غذائی اور مالی امداد چاہیے۔',
-        hinglish: 'Pregnancy ke time poshan aur financial help chahiye.',
-        en: 'I need support during pregnancy.',
-      },
-      pension: {
-        ta: 'அம்மாவுக்கு முதியோர் ஓய்வூதியம் வேண்டும்.',
-        hi: 'माँ के लिए वृद्धावस्था पेंशन की जानकारी चाहिए।',
-        te: 'అమ్మ కోసం వృద్ధాప్య పింఛను సహాయం కావాలి.',
-        bn: 'মায়ের জন্য বয়স্ক ভাতার পেনশন চাই।',
-        mr: 'आईसाठी वृद्धापकाळ पेन्शन हवी आहे.',
-        kn: 'ಅಮ್ಮನಿಗೆ ವೃದ್ಧಾಪ್ಯ ಪಿಂಚಣಿ ನೆರವು ಬೇಕು.',
-        gu: 'માતા માટે વૃદ્ધાવસ્થા પેન્શન જોઈએ છે.',
-        ml: 'അമ്മയ്ക്ക് വാർദ്ധക്യ പെൻഷൻ വേണം.',
-        pa: 'ਮਾਤਾ ਜੀ ਲਈ ਬੁਢਾਪਾ ਪੈਨਸ਼ਨ ਚਾਹੀਦੀ ਹੈ।',
-        od: 'ମାଆଙ୍କ ପାଇଁ ବାର୍ଦ୍ଧକ୍ୟ ପେନସନ ଦରକାର।',
-        as: 'মাৰ বাবে বৃদ্ধ পেঞ্চন লাগে।',
-        ur: 'والدہ کے لیے بڑھاپا پنشن چاہیے۔',
-        hinglish: 'Mummy ke liye elderly pension help chahiye.',
-        en: 'My mother needs pension help.',
-      },
-      health: {
-        ta: 'மருத்துவ சிகிச்சை அட்டை உதவி வேண்டும்.',
-        hi: 'आयुष्मान मुफ्त इलाज कार्ड बनवाना है।',
-        te: 'ఆయుష్మాన్ ఉచిత చికిత్స కార్డు కావాలి.',
-        bn: 'বিনামূল্যে চিকিৎসার স্বাস্থ্য কার্ড চাই।',
-        mr: 'मोफत उपचारासाठी आरोग्य कार्ड हवे आहे.',
-        kn: 'ಉಚಿತ ಚಿಕಿತ್ಸೆಗಾಗಿ ಆರೋಗ್ಯ ಕಾರ್ಡ್ ಬೇಕು.',
-        gu: 'મફત સારવાર માટે આયુષ્માન કાર્ડ બનાવવું છે.',
-        ml: 'സൗജന്യ ചികിത്സാ കാർഡ് വേണം.',
-        pa: 'ਮੁਫ਼ਤ ਇਲਾਜ ਲਈ ਸਿਹਤ ਕਾਰਡ ਬਣਵਾਉਣਾ ਹੈ।',
-        od: 'ମାଗଣା ଚିକିତ୍ସା ପାଇଁ ସ୍ୱାସ୍ଥ୍ୟ କାର୍ଡ଼ ଦରକାର।',
-        as: 'বিনামূলীয়া চিকিৎসাৰ কাৰ্ড লাগে।',
-        ur: 'مفت علاج کے لیے صحت کارڈ چاہیے۔',
-        hinglish: 'Free treatment ke liye Ayushman card banwana hai.',
-        en: 'I need free healthcare treatment card.',
-      },
-    };
 
-    return [
-      {
-        category: 'education' as const,
-        text: qMap.education[currentLanguage] || qMap.education.en,
-        icon: '🎓',
-      },
-      {
-        category: 'maternity' as const,
-        text: qMap.maternity[currentLanguage] || qMap.maternity.en,
-        icon: '🤱',
-      },
-      {
-        category: 'pension' as const,
-        text: qMap.pension[currentLanguage] || qMap.pension.en,
-        icon: '👵',
-      },
-      {
-        category: 'health' as const,
-        text: qMap.health[currentLanguage] || qMap.health.en,
-        icon: '🏥',
-      },
-    ];
-  };
-
-  const demoVoiceQueries = getLocalizedQueries();
 
   // Microphone interaction: activates listening, speaks prompt, and updates text filter to pull matches
   const handleMicClick = () => {
@@ -322,41 +226,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
       (res: any) => {
         captured = true;
         setIsMicActive(false);
-        setActiveSpokenText(res.transcript);
-        setSearchInput(res.transcript);
-        onVoiceSearchQuery(res.transcript);
+        const transcript = res?.transcript || res;
+        if (transcript && typeof transcript === 'string' && transcript.trim()) {
+          setActiveSpokenText(transcript.trim());
+          setSearchInput(transcript.trim());
+          onVoiceSearchQuery(transcript.trim());
+        }
       },
       () => {
-        if (!captured) {
-          const sample = demoVoiceQueries[0].text;
-          setTimeout(() => {
-            setActiveSpokenText(sample);
-            setSearchInput(sample);
-            setTimeout(() => {
-              setIsMicActive(false);
-              onVoiceSearchQuery(sample);
-            }, 1200);
-          }, 1000);
-        }
+        // Recognition ended or cancelled without speech: do NOT inject default queries!
+        setIsMicActive(false);
+        setActiveSpokenText('');
       },
       currentLanguage
     );
-
-    setTimeout(() => {
-      if (!captured && isMicActive) {
-        const sample = demoVoiceQueries[0].text;
-        setActiveSpokenText(sample);
-        setSearchInput(sample);
-        setIsMicActive(false);
-      }
-    }, 6000);
   };
 
-  const handleVoiceQueryClick = (queryText: string) => {
-    setSearchInput(queryText);
-    speechService.speak(queryText, currentLanguage, 1.0);
-    onVoiceSearchQuery(queryText);
-  };
+
 
   const quickPillPrompts = [
     { label: '🌸 Sukanya Samriddhi (SSY)', query: 'sukanya' },
@@ -441,33 +327,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
         {isMicActive && (
           <div className="max-w-md mx-auto p-4 rounded-2xl bg-[#141B3B] border border-[#9B5DE5]/40 text-center animate-pulse mb-6">
             <span className="text-xs text-[#F3A6C8] font-bold uppercase tracking-wider block mb-1">
-              Listening to your voice...
+              🎙️ {t.listening}
             </span>
             <p className="text-sm font-medium text-white italic">
-              {activeSpokenText ? `“${activeSpokenText}”` : '“I need help for my daughter’s education...”'}
+              {activeSpokenText ? `“${activeSpokenText}”` : 'Speak now in your own language…'}
             </p>
           </div>
         )}
-
-        {/* Quick Voice Chips (Judge & low-literacy quick taps) */}
-        <div className="pt-2">
-          <span className="text-[11px] uppercase tracking-wider text-[#C9A7FF] font-bold block mb-2.5">
-            {t.quickSampleQueriesTitle}
-          </span>
-          <div className="flex flex-wrap justify-center gap-2">
-            {demoVoiceQueries.map((q, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleVoiceQueryClick(q.text)}
-                className="px-3.5 py-2 rounded-2xl bg-[#131A3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 hover:border-[#F3A6C8] text-xs text-white font-medium flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
-              >
-                <span>{q.icon}</span>
-                <span>“{q.text}”</span>
-              </button>
-            ))}
-          </div>
-        </div>
       </section>
 
       {/* DYNAMIC SCHEMES DATABASE SEARCH & MATCH RESULTS */}

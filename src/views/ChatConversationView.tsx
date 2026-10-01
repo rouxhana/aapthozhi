@@ -26,23 +26,24 @@ import { voiceDetectionService } from '../services/voiceDetectionService';
 export { playAapThozhiVoice };
 
 // ─────────────────────────────────────────────────────────────────
-// Default "starter" questions for each language (shown as user query)
+// Localized opening greetings from AapThozhi (warm, polite, respectful)
+// AAPTHOZHI ASKS HOW SHE CAN HELP — NO DEFAULT USER QUESTIONS!
 // ─────────────────────────────────────────────────────────────────
-const DEFAULT_QUERIES: Record<LanguageCode, string> = {
-  ta: 'என் மகளின் கல்வி உதவிக்கு திட்டம் வேண்டும்.',
-  hi: 'मुझे अपनी बेटी की पढ़ाई के लिए छात्रवृत्ति सहायता चाहिए।',
-  te: 'నా కుమార్తె చదువు కోసం విద్యా సహాయం కావాలి.',
-  bn: 'আমার মেয়ের পড়াশোনার জন্য শিক্ষা অনুদান সহাযতা দরকার।',
-  mr: 'माझ्या मुलीच्या शिक्षणासाठी शिष्यवृत्तीची मदत हवी आहे.',
-  kn: 'ನನ್ನ ಮಗಳ ವಿದ್ಯಾಭ್ಯಾಸಕ್ಕಾಗಿ ಶೈಕ್ಷಣಿಕ ನೆರವು ಬೇಕು.',
-  gu: 'મારી દીકરીના અભ્યાસ માટે સરકારી સહાય જોઈએ છે.',
-  ml: 'എന്റെ മകളുടെ പഠനത്തിനായുള്ള വിദ്യാഭ്യാസ സഹായം വേണം.',
-  pa: 'ਮੈਨੂੰ ਆਪਣੀ ਧੀ ਦੀ ਪੜ੍ਹਾਈ ਲਈ ਵਜ਼ੀਫ਼ਾ ਸਹਾਇਤਾ ਚਾਹੀਦੀ ਹੈ।',
-  od: 'ମୋ ଝିଅର ପାଠପଢ଼ା ପାଇଁ ଶିକ୍ଷା ସହାୟତା ଦରକାର।',
-  as: 'মোৰ ছোৱালীৰ পঢ়া-শুনাৰ বাবে শিক্ষা সাহায্য লাগে।',
-  ur: 'مجھے اپنی بیٹی کی تعلیم کے لیے وظیفے کی مدد چاہیے۔',
-  hinglish: 'Mujhe apni beti ki padhai ke liye scholarship help chahiye.',
-  en: 'I need help for my daughter\'s education.',
+const ASSISTANT_WELCOME_MESSAGES: Record<LanguageCode, string> = {
+  ta: 'வணக்கம்! நான் உங்கள் ஆப்தோழி. உங்களுக்கு என்ன உதவி வேண்டும்? கீழே உள்ள மைக் பட்டனை அழுத்தி உங்கள் குரலில் பேசுங்கள் அல்லது தட்டச்சு செய்யுங்கள்.',
+  hi: 'नमस्ते! मैं आपकी आपथोझी हूँ। आपको किस योजना या मदद की ज़रूरत है? नीचे माइक बटन दबाकर अपनी आवाज़ में बोलिए या टाइप कीजिए।',
+  te: 'నమస్కారం! నేను మీ ఆప్తతోళిని. మీకు ఎలాంటి సహాయం లేదా పథకం కావాలి? కింద ఉన్న మైక్ బటన్ నొక్కి మీ స్వంత మాటల్లో మాట్లాడండి.',
+  bn: 'নমস্কার! আমি আপনার আপথোঝি। আপনার কী সাহায্য বা সরকারি প্রকল্প দরকার? নিচে মাইক বোতাম টিপে আপনার নিজের ভাষায় কথা বলুন।',
+  mr: 'नमस्कार! मी तुमची आपथोझी आहे. तुम्हाला कोणत्या योजनेची किंवा मदतीची गरज आहे? खालील माईक बटण दाबून आपल्या भाषेत बोला.',
+  kn: 'ನಮಸ್ಕಾರ! ನಾನು ನಿಮ್ಮ ಆಪ್ತತೋಳಿ. ನಿಮಗೆ ಯಾವ ಯೋಜನೆ ಅಥವಾ ಸಹಾಯ ಬೇಕು? ಕೆಳಗಿರುವ ಮೈಕ್ ಬಟನ್ ಒತ್ತಿ ನಿಮ್ಮ ಮಾತಿನಲ್ಲಿ ಕೇಳಿ.',
+  gu: 'નમસ્તે! હું તમારી આપથોઝી છું. તમને કઈ સરકારી યોજના કે સહાય જોઈએ છે? નીચે માઈક બટન દબાવીને તમારી ભાષામાં બોલો.',
+  ml: 'നമസ്കാരം! ഞാൻ നിങ്ങളുടെ ആപ്തോഴി. നിങ്ങൾക്ക് എന്ത് പദ്ധതിയോ സഹായമോ ആണ് വേണ്ടത്? താഴെയുള്ള മൈക്ക് ബട്ടൺ അമർത്തി സംസാരിക്കൂ.',
+  pa: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ ਤੁਹਾਡੀ ਆਪਥੋਜ਼ੀ ਹਾਂ। ਤੁਹਾਨੂੰ ਕਿਸ ਯੋਜਨਾ ਜਾਂ ਮਦਦ ਦੀ ਲੋੜ ਹੈ? ਹੇਠਾਂ ਮਾਈਕ ਬਟਨ ਦਬਾ ਕੇ ਆਪਣੀ ਬੋਲੀ ਵਿੱਚ ਪੁੱਛੋ।',
+  od: 'ନମସ୍କାର! ମୁଁ ଆପଣଙ୍କ ଆପଥୋଝି। ଆପଣଙ୍କୁ କେଉଁ ସରକାରୀ ଯୋଜନା ବା ସହାୟତା ଦରକାର? ତଳେ ଥିବା ମାଇକ୍ ବଟନ୍ ଦବାଇ ନିଜ ଭାଷାରେ କୁହନ୍ତୁ।',
+  as: 'নমস্কাৰ! মই আপোনাৰ আপথোজী। আপোনাক কি আঁচনি বা সাহায্য লাগে? তলৰ মাইক বুটাম টিপি আপোনাৰ নিজৰ ভাষাত কওক।',
+  ur: 'سلام! میں آپ کی آپ تھوزی ہوں۔ آپ کو کون سی اسکیم یا مدد چاہیے؟ نیچے مائیک کا بٹن دبا کر اپنی زبان میں پوچھیے۔',
+  hinglish: 'Namaste! Main aapki AapThozhi hoon. Aapko kis scheme ya madad ki zaroorat hai? Neeche mic button dabakar apni bhasha mein boliye.',
+  en: 'Hello! I am your AapThozhi. How can I help you today? Tap the microphone button below to speak or type in any language.',
 };
 
 // "Thinking" messages per language
@@ -53,7 +54,7 @@ const THINKING_MESSAGES: Record<LanguageCode, string> = {
   bn: '🤔 ভাবছি…',
   mr: '🤔 विचार करते आहे…',
   kn: '🤔 ಯೋಚಿಸುತ್ತಿದ್ದೇನೆ…',
-  gu: '🤔 વિચારી રही છું…',
+  gu: '🤔 વિચારી રહી છું…',
   ml: '🤔 ആലോചിക്കുന്നു…',
   pa: '🤔 ਸੋਚ ਰਹੀ ਹਾਂ…',
   od: '🤔 ଭାବୁଛି…',
@@ -86,6 +87,8 @@ interface ChatMessage {
   sender: 'user' | 'assistant' | 'thinking';
   text: string;
   audioText: string;
+  detectedLanguage?: LanguageCode;
+  languageName?: string;
   schemeIdTarget?: string;
   showSchemeAction?: boolean;
   source?: 'gemini-api' | 'local-dataset' | 'offline';
@@ -131,61 +134,62 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isThinking]);
 
-  // ── Initial load: send the opening query through Gemini async ──────────────
+  // ── Initial load: clean opening greeting (NO canned/default questions) ─────
   useEffect(() => {
-    const resolvedUserQuery = initialQuery || DEFAULT_QUERIES[currentLanguage] || DEFAULT_QUERIES.en;
-
     // Reset conversation history when starting fresh
     geminiService.clearHistory();
 
-    const userMsg: ChatMessage = {
-      id: 'msg-1',
-      sender: 'user',
-      text: resolvedUserQuery,
-      audioText: resolvedUserQuery,
-    };
-    setMessages([userMsg]);
-    setIsThinking(true);
-
-    // Use full async Gemini path from the very first message
-    aapThozhiAIService.generateResponseAsync(resolvedUserQuery, currentLanguage).then((aiResponse) => {
-      setIsThinking(false);
-      const assistantMsg: ChatMessage = {
-        id: 'msg-2',
+    if (initialQuery && initialQuery.trim()) {
+      // User arrived with a query they spoke or searched on another screen
+      sendMessage(initialQuery.trim());
+    } else {
+      // Start clean: AapThozhi introduces herself and invites user to speak/ask
+      const welcomeText = ASSISTANT_WELCOME_MESSAGES[currentLanguage] || ASSISTANT_WELCOME_MESSAGES.en;
+      const welcomeMsg: ChatMessage = {
+        id: 'msg-welcome',
         sender: 'assistant',
-        text: aiResponse.responseText,
-        audioText: aiResponse.audioText,
-        schemeIdTarget: aiResponse.matchedScheme ? String(aiResponse.matchedScheme.id) : undefined,
-        showSchemeAction: !!aiResponse.matchedScheme,
-        source: aiResponse.actionCategory === 'scheme' ? 'gemini-api' : 'local-dataset',
+        text: welcomeText,
+        audioText: welcomeText,
+        detectedLanguage: currentLanguage,
+        source: 'local-dataset',
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      setMessages([welcomeMsg]);
+      setIsThinking(false);
 
-      setTimeout(() => {
-        speechService.speak(assistantMsg.audioText, aiResponse.detectedLanguage, 1.0);
-      }, 400);
-    });
+      const timer = setTimeout(() => {
+        speechService.speak(welcomeText, currentLanguage, 1.0);
+      }, 450);
+
+      return () => clearTimeout(timer);
+    }
 
     return () => {
       speechService.stop();
     };
   }, [initialQuery, currentLanguage]);
 
-  // ── Send any message (typed or voice) through AI ──────────────────────────
+  // ── Send any message (typed or voice): detects language & gets AI answer ────
   const sendMessage = async (query: string) => {
     if (!query.trim() || isThinking) return;
+
+    // Detect language dynamically from the user's actual question!
+    const detection = voiceDetectionService.classifyLanguageFromText(query, currentLanguage);
+    const detectedLang = detection.detectedLang;
 
     const userMsg: ChatMessage = {
       id: `msg-u-${Date.now()}`,
       sender: 'user',
       text: query,
       audioText: query,
+      detectedLanguage: detectedLang,
+      languageName: detection.scriptName,
     };
     setMessages((prev) => [...prev, userMsg]);
     setIsThinking(true);
     speechService.stop();
 
-    const aiRes = await aapThozhiAIService.generateResponseAsync(query, currentLanguage);
+    // Pass detected language to AI engine
+    const aiRes = await aapThozhiAIService.generateResponseAsync(query, detectedLang);
     setIsThinking(false);
 
     const assistantMsg: ChatMessage = {
@@ -193,12 +197,14 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
       sender: 'assistant',
       text: aiRes.responseText,
       audioText: aiRes.audioText,
+      detectedLanguage: aiRes.detectedLanguage,
+      languageName: aiRes.languageName,
       schemeIdTarget: aiRes.matchedScheme ? String(aiRes.matchedScheme.id) : undefined,
       showSchemeAction: !!aiRes.matchedScheme,
       source: geminiService.isAvailable() ? 'gemini-api' : 'offline',
     };
     setMessages((prev) => [...prev, assistantMsg]);
-    speechService.speak(assistantMsg.audioText, aiRes.detectedLanguage);
+    speechService.speak(assistantMsg.audioText, aiRes.detectedLanguage, 1.0);
   };
 
   // ── Handle typed text submission ──────────────────────────────────────────
@@ -213,7 +219,7 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
   // ── Handle microphone button ──────────────────────────────────────────────
   const handleMicClick = () => {
     if (isListening) {
-      voiceDetectionService.stopListening?.();
+      voiceDetectionService.stopListening();
       setIsListening(false);
       setInterimTranscript('');
       return;
@@ -230,8 +236,8 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
       async (res: any) => {
         setIsListening(false);
         setInterimTranscript('');
-        const transcript = res.transcript || res;
-        if (transcript.trim()) {
+        const transcript = res?.transcript || res;
+        if (transcript && typeof transcript === 'string' && transcript.trim()) {
           await sendMessage(transcript.trim());
         }
       },
@@ -239,28 +245,29 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
         // No speech detected — show gentle prompt
         setIsListening(false);
         setInterimTranscript('');
-        const noSpeech = {
-          ta: 'மன்னிக்கவும், உங்கள் குரல் கேட்கவில்லை. மீண்டும் பேசுங்கள்.',
-          hi: 'माफ़ करें, आवाज़ नहीं सुनाई दी। दोबारा बोलें।',
-          te: 'క్షమించండి, మీ మాటలు వినలేదు. మళ్ళీ మాట్లాడండి.',
-          kn: 'ಕ್ಷಮಿಸಿ, ನಿಮ್ಮ ಧ್ವನಿ ಕೇಳಿಸಲಿಲ್ಲ. ಮತ್ತೊಮ್ಮೆ ಮಾತನಾಡಿ.',
-          mr: 'माफ करा, तुमचा आवाज ऐकू आला नाही. पुन्हा बोला.',
-          bn: 'দুঃখিত, আপনার কণ্ঠস্বর শোনা যায়নি। আবার বলুন।',
-          gu: 'માફ કરો, અવાજ ન સંભળાયો. ફરી બોલો.',
-          ml: 'ക്ഷമിക്കണം, ശബ്ദം കേട്ടില്ല. വീണ്ടും സംസാരിക്കൂ.',
-          pa: 'ਮਾਫ਼ ਕਰਨਾ, ਆਵਾਜ਼ ਸੁਣਾਈ ਨਹੀਂ ਦਿੱਤੀ। ਦੁਬਾਰਾ ਬੋਲੋ।',
-          od: 'ଦୁଃଖ ଅଛି, ଆପଣଙ୍କ ସ୍ୱର ଶୁଣି ହେଲା ନାହିଁ। ପୁଣି ଥରେ କୁହନ୍ତୁ।',
-          as: "মাফ কৰিব, আপোনাৰ কথা শুনা নগ'ল। পুনৰাই কওক।",
-          ur: 'معاف کریں، آواز نہیں آئی۔ دوبارہ بولیں۔',
-          hinglish: 'Maaf karo, awaaz nahin aayi. Dobara bolein.',
-          en: 'Sorry, I could not hear you. Please speak again.',
-        } as Record<LanguageCode, string>;
+        const noSpeech: Record<LanguageCode, string> = {
+          ta: 'மன்னிக்கவும், உங்கள் குரல் கேட்கவில்லை. கீழே உள்ள மைக் பட்டனை அழுத்தி மீண்டும் பேசுங்கள்.',
+          hi: 'माफ़ करें, आवाज़ नहीं सुनाई दी। कृपया नीचे माइक बटन दबाकर दोबारा बोलें।',
+          te: 'క్షమించండి, మీ మాటలు వినలేదు. కింద ఉన్న మైక్ బటన్ నొక్కి మళ్ళీ మాట్లాడండి.',
+          kn: 'ಕ್ಷಮಿಸಿ, ನಿಮ್ಮ ಧ್ವನಿ ಕೇಳಿಸಲಿಲ್ಲ. ಕೆಳಗಿರುವ ಮೈಕ್ ಒತ್ತಿ ಮತ್ತೊಮ್ಮೆ ಮಾತನಾಡಿ.',
+          mr: 'माफ करा, आवाज ऐकू आला नाही. खालील माईक दाबून पुन्हा बोला.',
+          bn: 'দুঃখিত, আপনার কথা শোনা যায়নি। নিচের মাইক বোতাম টিপে আবার বলুন।',
+          gu: 'માફ કરો, અવાજ ન સંભળાયો. નીચે માઈક દબાવીને ફરી બોલો.',
+          ml: 'ക്ഷമിക്കണം, ശബ്ദം കേട്ടില്ല. താഴെയുള്ള മൈക്ക് അമർത്തി വീണ്ടും പറയൂ.',
+          pa: 'ਮਾਫ਼ ਕਰਨਾ, ਆਵਾਜ਼ ਨਹੀਂ ਸੁਣੀ। ਹੇਠਾਂ ਮਾਈਕ ਦਬਾ ਕੇ ਦੁਬਾਰਾ ਬੋਲੋ।',
+          od: 'ଦୁଃଖିତ, ଆପଣଙ୍କ ସ୍ୱର ଶୁଣି ହେଲା ନାହିଁ। ତଳେ ଥିବା ମାଇକ୍ ଦବାଇ ପୁଣି କୁହନ୍ତୁ।',
+          as: "মাফ কৰিব, কথা শুনা নগ'ল। তলৰ মাইক টিপি পুনৰ কওক।",
+          ur: 'معاف کریں، آواز نہیں آئی۔ نیچے مائیک کا بٹن دبا کر دوبارہ بولیں۔',
+          hinglish: 'Maaf kijiye, awaaz nahi aayi. Neeche mic button dabakar dobara bolein.',
+          en: 'Sorry, I could not hear your voice. Please tap the mic button and speak again.',
+        };
 
         const hint = noSpeech[currentLanguage] || noSpeech.en;
         setMessages((prev) => [
           ...prev,
           { id: `msg-nsp-${Date.now()}`, sender: 'assistant', text: hint, audioText: hint, source: 'offline' },
         ]);
+        speechService.speak(hint, currentLanguage, 1.0);
       },
       currentLanguage
     );
@@ -346,14 +353,28 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between gap-3 mb-2">
-                  <span className="text-xs font-bold text-[#C9A7FF]">
-                    {isUser ? '🗣️ You' : '🤖 AapThozhi'}
-                    {msg.source === 'gemini-api' && (
-                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[9px] border border-emerald-400/30">AI</span>
+                  <div className="flex items-center flex-wrap gap-1.5">
+                    <span className="text-xs font-bold text-[#C9A7FF] flex items-center gap-1">
+                      {isUser ? '🗣️ You' : '🤖 AapThozhi'}
+                    </span>
+                    {msg.languageName && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border flex items-center gap-1 ${
+                        isUser
+                          ? 'bg-[#9B5DE5]/20 text-[#F3A6C8] border-[#9B5DE5]/40'
+                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30'
+                      }`}>
+                        <span>🌐</span>
+                        <span>{msg.languageName}</span>
+                      </span>
                     )}
-                  </span>
+                    {msg.source === 'gemini-api' && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[9px] border border-emerald-400/30 font-bold">
+                        Gemini AI
+                      </span>
+                    )}
+                  </div>
                   {!isUser && (
-                    <SpeakerButton textToSpeak={msg.audioText} langCode={currentLanguage} size="sm" />
+                    <SpeakerButton textToSpeak={msg.audioText} langCode={msg.detectedLanguage || currentLanguage} size="sm" />
                   )}
                 </div>
 
