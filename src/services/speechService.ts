@@ -358,3 +358,41 @@ class SpeechService {
 }
 
 export const speechService = new SpeechService();
+
+// Functional utility to sync voice execution helper
+export const playAapThozhiVoice = (text: string, detectedLanguageCode: string) => {
+  if (!text) return;
+
+  // 1. Ensure any regional character blocks are safe for network transit
+  const sanitizedText = encodeURIComponent(text);
+  
+  // 2. Map standard variants cleanly to prevent backend delivery drops
+  const languageMap: Record<string, string> = {
+    'telugu': 'te',
+    'tamil': 'ta',
+    'marathi': 'mr',
+    'kannada': 'kn',
+    'hindi': 'hi',
+    'te': 'te',
+    'ta': 'ta',
+    'mr': 'mr',
+    'kn': 'kn',
+    'hi': 'hi'
+  };
+
+  const targetLang = languageMap[detectedLanguageCode.toLowerCase()] || 'hi';
+
+  // 3. Construct the clean non-blocked client fallback frame
+  const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${targetLang}&q=${sanitizedText}`;
+  
+  const audio = new Audio(audioUrl);
+  audio.setAttribute('referrerpolicy', 'no-referrer');
+  (audio as any).referrerPolicy = 'no-referrer';
+
+  audio.play()
+    .then(() => console.log(`AapThozhi speaking in code: ${targetLang}`))
+    .catch((error) => {
+      console.warn("Direct voice synthesis path failed, falling back to speechService:", error);
+      speechService.speak(text, targetLang as LanguageCode);
+    });
+};
