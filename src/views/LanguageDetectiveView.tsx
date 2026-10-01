@@ -196,19 +196,6 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
     }
   };
 
-  // Top prominent languages for quick filter tabs
-  // Top prominent languages for quick filter tabs
-  const PRIMARY_FILTER_LANGS: { code: LanguageCode | 'auto'; label: string; native: string }[] = [
-    { code: 'auto', label: 'Auto Detect', native: '🎙️ Multi-Voice' },
-    { code: 'ta', label: 'Tamil', native: '🌸 தமிழ்' },
-    { code: 'te', label: 'Telugu', native: '🌾 తెలుగు' },
-    { code: 'kn', label: 'Kannada', native: '🐘 ಕನ್ನಡ' },
-    { code: 'hi', label: 'Hindi', native: '🪔 हिन्दी' },
-    { code: 'mr', label: 'Marathi', native: '🚩 मराठी' },
-    { code: 'bn', label: 'Bengali', native: '🌺 বাংলা' },
-    { code: 'en', label: 'English', native: '🌐 English' },
-  ];
-
   const lowConfidenceTop3: LanguageCode[] = ['te', 'ta', 'kn'];
 
   return (
@@ -258,133 +245,138 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
 
       {/* Main Central Stage */}
       <main className="max-w-xl mx-auto w-full my-auto py-6 text-center flex flex-col items-center">
-        {/* Core Accessibility Motto Badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#131A3B] border border-[#9B5DE5]/40 text-[#F3A6C8] text-xs font-semibold mb-5 shadow-md">
-          <Sparkles size={14} />
-          <span>Dekho, Suno, Karo • See it. Hear it. Do it.</span>
+        {/* Core Accessibility Motto & Automatic Detection Badge */}
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#131A3B] border border-[#9B5DE5]/40 text-[#F3A6C8] text-xs font-semibold shadow-md">
+            <Sparkles size={14} />
+            <span>Dekho, Suno, Karo • See it. Hear it. Do it.</span>
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#45C27C]/15 border border-[#45C27C]/40 text-[#45C27C] text-xs font-bold shadow-md">
+            <ShieldCheck size={14} />
+            <span>Automatic Language Detection (Default)</span>
+          </div>
         </div>
 
         {/* State 1: Default or Listening State */}
         {!detectedLanguage && !isLowConfidence && (
           <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-300 w-full">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2 leading-tight max-w-lg">
-              🎙️ Speak or Tap Your Language
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-white mb-2 leading-tight max-w-xl">
+              🎙️ Just Speak in Your Mother Tongue
             </h2>
-            <p className="text-xs sm:text-sm text-[#B7BDD3] max-w-md mb-4 leading-relaxed">
-              AapThozhi understands and speaks your language. Tap your language pill, or speak into the microphone.
+            <p className="text-xs sm:text-sm text-[#C9A7FF] max-w-lg mb-6 leading-relaxed font-medium">
+              No reading or manual selection needed. Simply tap the microphone and speak naturally in your mother tongue — AapThozhi automatically identifies your language!
             </p>
 
-            {/* Quick Language Target Selection Pills */}
-            <div className="flex items-center justify-center gap-1.5 flex-wrap max-w-lg mb-5" role="tablist" aria-label="Language selection pills">
-              {PRIMARY_FILTER_LANGS.map((filter) => {
-                const isActive = speakingTargetLang === filter.code;
-                return (
-                  <button
-                    key={filter.code}
-                    type="button"
-                    onClick={() => {
-                      setSpeakingTargetLang(filter.code);
-                      if (filter.code !== 'auto') {
-                        setStatusMessage(`Ready to listen in ${filter.label} (${filter.native})`);
-                      } else {
-                        setStatusMessage('Ready for Auto-Detect across all languages');
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
-                      isActive
-                        ? 'bg-gradient-to-r from-[#9B5DE5] to-[#F3A6C8] text-[#0B1026] border-transparent shadow-md scale-105'
-                        : 'bg-[#141B3B] hover:bg-[#1A234E] text-[#C9A7FF] border-[#9B5DE5]/30 hover:border-[#F3A6C8]'
-                    }`}
-                  >
-                    <span>{filter.native}</span>
-                    <span className="ml-1 opacity-80 text-[10px]">({filter.label})</span>
-                  </button>
-                );
-              })}
+            {/* HERO AUTOMATIC DETECTION CARD */}
+            <div className="w-full max-w-lg p-6 sm:p-7 rounded-3xl bg-gradient-to-b from-[#141B3B] to-[#0D1333] border-2 border-[#9B5DE5]/40 shadow-2xl relative flex flex-col items-center mb-6">
+              {/* Active Mode Status Indicator */}
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#1A234E] border border-[#9B5DE5]/30 text-xs font-semibold text-[#F3A6C8] mb-4">
+                <Radio size={12} className={isListening ? 'text-[#EF6A7B] animate-ping' : 'text-[#45C27C]'} />
+                <span>
+                  {isListening ? 'Listening & Detecting Your Language...' : '⚡ Automatic Voice Detective Ready'}
+                </span>
+              </div>
+
+              {/* Giant Central Microphone Button with Animated Ripple Waves */}
+              <div className="relative my-2 flex items-center justify-center">
+                <div
+                  className={`absolute w-44 h-44 sm:w-48 sm:h-48 rounded-full border-2 border-[#9B5DE5]/40 transition-transform duration-100 ${
+                    isListening ? 'scale-110 opacity-75' : 'animate-pulse opacity-40'
+                  }`}
+                  style={{
+                    transform: isListening ? `scale(${1 + micVolume * 0.005})` : undefined,
+                  }}
+                />
+                <div
+                  className={`absolute w-36 h-36 sm:w-40 sm:h-40 rounded-full bg-gradient-to-r from-[#9B5DE5]/30 to-[#F3A6C8]/30 ${
+                    isListening ? 'animate-soundwave' : ''
+                  }`}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSpeakingTargetLang('auto');
+                    handleMicrophoneClick();
+                  }}
+                  disabled={isListening}
+                  className={`relative w-32 h-32 sm:w-36 sm:h-36 rounded-full flex flex-col items-center justify-center transition-all cursor-pointer shadow-2xl ${
+                    isListening
+                      ? 'bg-[#EF6A7B] text-white ring-8 ring-[#EF6A7B]/40 scale-105'
+                      : 'bg-gradient-to-tr from-[#9B5DE5] via-[#8338EC] to-[#F3A6C8] text-white hover:scale-105 shadow-[#9B5DE5]/50 ring-4 ring-[#C9A7FF]/30'
+                  }`}
+                  aria-label="Tap to speak in your language — automatic language detection"
+                  title="Tap to speak — AapThozhi will detect your language automatically"
+                >
+                  <Mic size={44} className={isListening ? 'animate-bounce' : 'stroke-[2.2]'} />
+                  <span className="text-xs font-black tracking-wider uppercase mt-1">
+                    {isListening ? 'Listening...' : 'Tap & Speak'}
+                  </span>
+                  <span className="text-[10px] text-white/90 font-bold">
+                    {isListening ? 'Speak now' : 'Auto-Detects Language'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Clear Micro-Instructions */}
+              <p className="text-xs text-[#B7BDD3] mt-3 mb-1 text-center font-medium max-w-sm">
+                {isListening
+                  ? 'Speak now in Tamil, Telugu, Hindi, Kannada, Malayalam, Marathi, Bengali, English, etc.'
+                  : 'Speak any phrase or question. AapThozhi will detect your language and reply in it.'}
+              </p>
+
+              {/* Live Transcription / Status Box */}
+              {isListening && (
+                <div className="mt-4 p-4 rounded-2xl bg-[#0B1026] border-2 border-[#EF6A7B]/50 w-full shadow-2xl animate-pulse text-center">
+                  <div className="flex items-center justify-center gap-2 text-xs text-[#EF6A7B] font-extrabold uppercase mb-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#EF6A7B] animate-ping" />
+                    <span>{statusMessage || 'Listening to your voice... Speak now!'}</span>
+                  </div>
+                  <p className="text-sm text-white italic min-h-6 font-medium">
+                    {transcribedText ? `“${transcribedText}”` : 'Listening for your speech in any Indian language...'}
+                  </p>
+                  {/* Voice amplitude meter */}
+                  <div className="flex items-center justify-center gap-1 mt-2">
+                    {[12, 24, 38, 20, 30, 16, 28, 22, 34].map((h, i) => (
+                      <span
+                        key={i}
+                        className="w-1.5 bg-[#F3A6C8] rounded-full animate-wave-bar"
+                        style={{
+                          height: `${Math.max(8, (h * (micVolume || 50)) / 60)}px`,
+                          animationDelay: `${i * 0.1}s`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!isListening && statusMessage && (
+                <div className="mt-3 p-3 rounded-2xl bg-[#0B1026] border border-[#9B5DE5]/30 w-full text-xs text-[#F3A6C8] font-semibold text-center">
+                  {statusMessage}
+                </div>
+              )}
             </div>
 
-            {/* Giant Central Microphone Button with Animated Ripple Waves */}
-            <div className="relative mb-6 flex items-center justify-center">
-              <div
-                className={`absolute w-44 h-44 rounded-full border-2 border-[#9B5DE5]/40 transition-transform duration-100 ${
-                  isListening ? 'scale-110 opacity-75' : 'animate-pulse opacity-40'
-                }`}
-                style={{
-                  transform: isListening ? `scale(${1 + micVolume * 0.005})` : undefined,
-                }}
-              />
-              <div
-                className={`absolute w-34 h-34 rounded-full bg-gradient-to-r from-[#9B5DE5]/30 to-[#F3A6C8]/30 ${
-                  isListening ? 'animate-soundwave' : ''
-                }`}
-              />
-
-              <button
-                type="button"
-                onClick={handleMicrophoneClick}
-                disabled={isListening}
-                className={`relative w-32 h-32 sm:w-36 sm:h-36 rounded-full flex flex-col items-center justify-center transition-all cursor-pointer shadow-2xl ${
-                  isListening
-                    ? 'bg-[#EF6A7B] text-white ring-8 ring-[#EF6A7B]/40 scale-105'
-                    : 'bg-gradient-to-tr from-[#9B5DE5] via-[#8338EC] to-[#F3A6C8] text-white hover:scale-105 shadow-[#9B5DE5]/50 ring-4 ring-[#C9A7FF]/30'
-                }`}
-                aria-label="Tap to speak in your language"
-                title="Tap to speak your question or language"
-              >
-                <Mic size={46} className={isListening ? 'animate-bounce' : 'stroke-[2.2]'} />
-                <span className="text-xs font-black tracking-wide uppercase mt-1">
-                  {isListening ? 'Listening...' : 'Tap & Speak'}
+            {/* DISTINCT OPTIONAL MANUAL SELECTION SECTION */}
+            <div className="w-full max-w-2xl flex items-center gap-3 my-3">
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#9B5DE5]/40 to-transparent" />
+              <div className="px-3.5 py-1.5 rounded-full bg-[#141B3B] border border-[#9B5DE5]/40 text-xs font-bold text-[#C9A7FF] flex items-center gap-2 shadow-sm">
+                <Globe size={14} className="text-[#F3A6C8]" />
+                <span>Or Choose Manually</span>
+                <span className="text-[10px] text-[#45C27C] font-extrabold uppercase tracking-wider bg-[#45C27C]/15 px-2 py-0.5 rounded-full border border-[#45C27C]/30">
+                  Optional Fallback
                 </span>
-                <span className="text-[10px] text-white/80 font-medium">
-                  {isListening ? 'Speak now' : '🎙️ உங்கள் மொழி'}
-                </span>
-              </button>
+              </div>
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#9B5DE5]/40 to-transparent" />
             </div>
 
-            {/* Live Transcription / Status Box */}
-            {isListening && (
-              <div className="p-4 rounded-2xl bg-[#141B3B] border-2 border-[#EF6A7B]/50 max-w-md w-full shadow-2xl animate-pulse mb-6">
-                <div className="flex items-center justify-center gap-2 text-xs text-[#EF6A7B] font-extrabold uppercase mb-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#EF6A7B] animate-ping" />
-                  <span>{statusMessage || 'Listening to your voice... Speak now!'}</span>
-                </div>
-                <p className="text-sm text-white italic min-h-6 font-medium">
-                  {transcribedText ? `“${transcribedText}”` : 'Speak in Tamil, Telugu, Hindi, Kannada, Marathi or any language...'}
-                </p>
-                {/* Voice amplitude meter */}
-                <div className="flex items-center justify-center gap-1 mt-2">
-                  {[12, 24, 38, 20, 30, 16, 28, 22, 34].map((h, i) => (
-                    <span
-                      key={i}
-                      className="w-1.5 bg-[#F3A6C8] rounded-full animate-wave-bar"
-                      style={{
-                        height: `${Math.max(8, (h * (micVolume || 50)) / 60)}px`,
-                        animationDelay: `${i * 0.1}s`,
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+            <p className="text-xs text-[#B7BDD3] max-w-md mb-4 text-center font-normal">
+              In a noisy environment or prefer not to use voice? You can optionally tap any of the 14 languages below:
+            </p>
 
-            {!isListening && statusMessage && (
-              <div className="p-3 rounded-2xl bg-[#141B3B] border border-[#9B5DE5]/30 max-w-md w-full text-xs text-[#F3A6C8] font-semibold mb-5 text-center">
-                {statusMessage}
-              </div>
-            )}
-
-            {/* PROMINENT 14-LANGUAGE VISUAL CARDS GRID WITH ICONS & SPEAKERS */}
-            <div className="w-full max-w-2xl pt-4 border-t-2 border-[#9B5DE5]/20">
-              <div className="flex items-center justify-between mb-3 px-1">
-                <span className="text-xs font-extrabold text-[#F3A6C8] flex items-center gap-1.5 uppercase tracking-wider">
-                  <Volume2 size={16} />
-                  <span>Or Tap Your Language Directly:</span>
-                </span>
-                <span className="text-xs text-[#45C27C] font-bold bg-[#45C27C]/15 px-2.5 py-0.5 rounded-full border border-[#45C27C]/40">
-                  ⚡ 14 Indian Languages
-                </span>
-              </div>
-
+            {/* 14-LANGUAGE VISUAL CARDS GRID WITH ICONS & SPEAKERS (OPTIONAL ALTERNATIVE) */}
+            <div className="w-full max-w-2xl">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 text-left">
                 {SUPPORTED_LANGUAGES.map((lang) => {
                   const icon = REGIONAL_ICONS[lang.code] || '🗣️';
@@ -396,9 +388,9 @@ export const LanguageDetectiveView: React.FC<LanguageDetectiveViewProps> = ({
                         setSpeakingTargetLang(lang.code);
                         handleSuccessfulDetection(lang.code, lang.demoPhrase, 98);
                       }}
-                      className="p-3 rounded-2xl bg-[#141B3B] hover:bg-[#1A234E] border-2 border-[#9B5DE5]/30 hover:border-[#F3A6C8] transition-all group cursor-pointer shadow-md hover:scale-[1.03] active:scale-95 flex flex-col justify-between min-h-[72px]"
-                      title={`Select ${lang.name} (${lang.nativeName})`}
-                      aria-label={`Select ${lang.name}, ${lang.nativeName}`}
+                      className="p-3 rounded-2xl bg-[#141B3B] hover:bg-[#1A234E] border border-[#9B5DE5]/30 hover:border-[#F3A6C8] transition-all group cursor-pointer shadow-md hover:scale-[1.02] active:scale-95 flex flex-col justify-between min-h-[72px]"
+                      title={`Optional: Select ${lang.name} (${lang.nativeName})`}
+                      aria-label={`Optional: Select ${lang.name}, ${lang.nativeName}`}
                     >
                       <div className="flex items-center justify-between w-full">
                         <span className="text-xl" role="img" aria-hidden="true">{icon}</span>

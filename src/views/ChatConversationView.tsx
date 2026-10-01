@@ -173,7 +173,7 @@ export const ChatConversationView: React.FC<ChatConversationViewProps> = ({
     if (!query.trim() || isThinking) return;
 
     // Detect language dynamically from the user's actual question!
-    const detection = voiceDetectionService.classifyLanguageFromText(query, currentLanguage);
+    const detection = await voiceDetectionService.detectLanguageAsync(query, currentLanguage);
     const detectedLang = detection.detectedLang;
 
     const userMsg: ChatMessage = {

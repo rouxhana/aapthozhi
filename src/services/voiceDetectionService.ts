@@ -1,4 +1,5 @@
 import { LanguageCode } from '../types';
+import { geminiService } from './geminiService';
 
 export interface DetectionResult {
   detectedLang: LanguageCode;
@@ -135,7 +136,6 @@ const ROMAN_VOCABULARY: Record<LanguageCode, string[]> = {
     'yojane',
     'mahile',
     'aarogya',
-    'pension',
     'dakhale',
     'kendra',
     'kannada',
@@ -434,11 +434,48 @@ class VoiceDetectionService {
             finalTranscript,
             preferredLangCode as LanguageCode
           );
-          onResult({
-            ...classified,
-            transcript: finalTranscript,
-            isRealMicrophone: true,
-          });
+
+          // Check if native script was recognized (e.g. Tamil தமிழ், Telugu తెలుగు, Kannada ಕನ್ನಡ, etc.)
+          const hasNativeScript = finalTranscript.match(
+            /[\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F\u0A80-\u0AFF\u0A00-\u0A7F\u0B00-\u0B7F\u0600-\u06FF\u0980-\u09FF\u0900-\u097F]/
+          );
+
+          // If native script or English is detected, it's 100% conclusive
+          if (hasNativeScript || classified.detectedLang === 'en' || !geminiService.isAvailable()) {
+            onResult({
+              ...classified,
+              transcript: finalTranscript,
+              isRealMicrophone: true,
+            });
+          } else {
+            // For Romanized speech without native script, verify with Gemini in background for perfection
+            geminiService
+              .detectLanguageWithGemini(finalTranscript)
+              .then((geminiRes) => {
+                if (geminiRes && geminiRes.languageCode) {
+                  onResult({
+                    detectedLang: geminiRes.languageCode,
+                    confidence: geminiRes.confidence || 98,
+                    transcript: finalTranscript,
+                    isRealMicrophone: true,
+                    scriptName: geminiRes.languageName,
+                  });
+                } else {
+                  onResult({
+                    ...classified,
+                    transcript: finalTranscript,
+                    isRealMicrophone: true,
+                  });
+                }
+              })
+              .catch(() => {
+                onResult({
+                  ...classified,
+                  transcript: finalTranscript,
+                  isRealMicrophone: true,
+                });
+              });
+          }
         }
       };
 
@@ -675,6 +712,56 @@ class VoiceDetectionService {
     }
 
     return { detectedLang: 'en', confidence: 96, scriptName: 'English (Indian English)' };
+  }
+
+  /**
+   * Async neural detection combining script rules + Gemini API
+   */
+  public async detectLanguageAsync(
+    text: string,
+    preferredLangCode?: LanguageCode | 'auto'
+  ): Promise<DetectionResult> {
+    const clean = (text || '').trim();
+    if (!clean) {
+      const fallback = preferredLangCode && preferredLangCode !== 'auto' ? preferredLangCode : 'ta';
+      return { detectedLang: fallback as LanguageCode, confidence: 95, transcript: '', isRealMicrophone: true, scriptName: 'Tamil' };
+    }
+
+    const local = this.classifyLanguageFromText(clean, preferredLangCode);
+
+    // If native script or English is detected, it is 100% conclusive
+    const hasNativeScript = clean.match(
+      /[\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F\u0A80-\u0AFF\u0A00-\u0A7F\u0B00-\u0B7F\u0600-\u06FF\u0980-\u09FF\u0900-\u097F]/
+    );
+
+    if (hasNativeScript || local.detectedLang === 'en' || !geminiService.isAvailable()) {
+      return {
+        ...local,
+        transcript: clean,
+        isRealMicrophone: true,
+      };
+    }
+
+    try {
+      const geminiRes = await geminiService.detectLanguageWithGemini(clean);
+      if (geminiRes && geminiRes.languageCode) {
+        return {
+          detectedLang: geminiRes.languageCode,
+          confidence: geminiRes.confidence || 98,
+          transcript: clean,
+          isRealMicrophone: true,
+          scriptName: geminiRes.languageName,
+        };
+      }
+    } catch {
+      // offline / fallback
+    }
+
+    return {
+      ...local,
+      transcript: clean,
+      isRealMicrophone: true,
+    };
   }
 
   /**

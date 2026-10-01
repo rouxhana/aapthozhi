@@ -297,6 +297,64 @@ Scheme ${i + 1}:
         // Try next model
       }
     }
+    return null;
+  }
+
+  /**
+   * Fast neural language identification using Google Gemini
+   */
+  public async detectLanguageWithGemini(
+    text: string
+  ): Promise<{ languageCode: LanguageCode; languageName: string; confidence: number } | null> {
+    const apiKey = this.getApiKey();
+    if (!apiKey || !text || text.trim().length === 0) return null;
+
+    const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.8-flash'];
+    const prompt = `Identify the Indian regional language of this spoken query (it could be in native script, phonetic Romanized script, or English).
+Text to identify: "${text.trim()}"
+
+Return ONLY a raw JSON object with this exact schema:
+{"languageCode": "ta"|"te"|"kn"|"ml"|"hi"|"mr"|"bn"|"gu"|"pa"|"od"|"as"|"ur"|"en"|"hinglish", "languageName": string, "confidence": number}`;
+
+    for (const model of GEMINI_MODELS) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2200); // 2.2-second timeout
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 60,
+              responseMimeType: 'application/json',
+            },
+          }),
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) continue;
+
+        const data = await response.json();
+        const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawJson) {
+          const parsed = JSON.parse(rawJson.trim());
+          if (parsed && parsed.languageCode) {
+            return {
+              languageCode: parsed.languageCode as LanguageCode,
+              languageName: parsed.languageName || parsed.languageCode,
+              confidence: parsed.confidence || 98,
+            };
+          }
+        }
+      } catch {
+        // try next model or fall back
+      }
+    }
 
     return null;
   }
